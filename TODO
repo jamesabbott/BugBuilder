@@ -3,3 +3,4 @@
 * Add script to install prerequisites...would this be maintainable?
 * Add documentation
 * Add demo/tests set from SRA
+* Add Amosvalidate singleton breakpoint results
