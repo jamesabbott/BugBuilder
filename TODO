@@ -1,4 +1,3 @@
-* remove snp calling code
 * move configuration to separate YAML file
 * Add interproscan to annotation stage
 * Add script to install prerequisites...would this be maintainable?
