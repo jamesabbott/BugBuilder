@@ -1,9 +1,6 @@
-* id large insertion loci to markup with CC lines in EMBL file
 * remove snp calling code
-* merge code from post_gapfiller_agp.pl for AGP generation
 * move configuration to separate YAML file
 * Add interproscan to annotation stage
-* Output both publication ready (i.e. contigs < 200bp removed etc.) and 'full' outputs to aid finishing
 * Add script to install prerequisites...would this be maintainable?
 * Add documentation
 * Add demo/tests set from SRA
