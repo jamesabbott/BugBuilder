@@ -4,3 +4,4 @@
 * Add documentation
 * Add demo/tests set from SRA
 * Add Amosvalidate singleton breakpoint results
+* check if run_sis and order_scaffolds refer to symlinked reference or passed parameter
