@@ -1,0 +1,110 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL$
+# $Author$
+# $Revision$
+# $Date$
+#
+# Wrapper for sspace to permit use via BugBuilder scaffolding stages
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_sspace
+
+=head1 SYNOPSIS
+
+run_sspace --tmpdir BugBuilder_working_directory --insert_size insert_size --insert_sd insert_sd [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for sspace scaffolder to permit use withing BugBuilder's scaffolding configuration.
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<insert_size>: Insert size of library
+
+=item B<insert_sd>: Standard deviation of library insert sizes
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $tmpdir, $insert_size, $insert_sd );
+
+    my $result = GetOptions(
+                             'tmpdir=s'      => \$tmpdir,
+                             'insert_size=s' => \$insert_size,
+                             'insert_sd=s'   => \$insert_sd,
+                             'help'          => \$help,
+                             'man'           => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$insert_size || !$insert_sd );
+
+    chdir "$tmpdir/sspace" or croak "Could not chdir to $tmpdir/sspace:$!";
+
+    my $error = sprintf( "%.2f", $insert_sd / $insert_size );
+
+    open LIB, ">library.txt" or croak "Error opening library.txt: $!";
+    print LIB "lib1 $tmpdir/read1.fastq $tmpdir/read2.fastq $insert_size $error 0\n";
+    close LIB;
+
+    my $cmd = $config->{'sspace_dir'} . "SSPACE_v1-0.pl -l library.txt -x 0 -b sspace -s $tmpdir/contigs.fasta";
+    system($cmd) == 0 or croak "Error running $cmd: $!";
+
+    my $inIO = Bio::SeqIO->new(-file=>"sspace.final.scaffolds.fasta", -format=>'fasta');
+    my $outIO = Bio::SeqIO->new(-file=>">BugBuilder.scaffolds.fasta", -format=>'fasta');
+    my $scaff_count=0;
+    while (my $scaff = $inIO->next_seq()) {
+	my $scaffold_id = sprintf( "scaffold_%06s", ++$scaff_count );
+	$scaff->display_id($scaffold_id);
+	$outIO->write_seq($scaff);
+    }
+
+}

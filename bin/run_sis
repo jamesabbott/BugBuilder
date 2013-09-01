@@ -1,0 +1,163 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_sis $
+# $Author: jamesa $
+# $Revision: 43 $
+# $Date: 2013-08-29 15:28:38 +0100 (Thu, 29 Aug 2013) $
+#
+# Wrapper for SIS to permit use via BugBuilder scaffolding stages
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_sis
+
+=head1 SYNOPSIS
+
+run_sis --tmpdir BugBuilder_working_directory --reference reference_genome.fasta [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for SIS scaffolder to permit use withing BugBuilder's scaffolding configuration.
+SIS makes use of MUMmer to carry out alignments, and post-processes the show_coords output. 
+These MUMmer stages need running prior to executing SIS itself. Following SIS execution the
+generated scaffolds (which consist of ordered contigs, with one scaffold per fasta file) 
+are reprocessed into a multifasta file of 'N' gapped scaffold sequences.
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<reference>: Fasta formatted reference genome for aligning contigs against
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $reference, $tmpdir );
+
+    my $result = GetOptions(
+                             'reference:s' => \$reference,
+                             'tmpdir=s'    => \$tmpdir,
+                             'help'        => \$help,
+                             'man'         => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$reference );
+
+    croak "\n$reference does not exist" unless ( -e $reference );
+
+    chdir "$tmpdir/SIS" or croak "Could not chdir to $tmpdir/SIS:$!";
+
+    my $cmd = $config->{'mummer_dir'}
+      . "/nucmer $tmpdir/$reference $tmpdir/contigs.fasta -p $tmpdir/SIS/sis > $tmpdir/SIS/nucmer.log 2>&1";
+    system($cmd) == 0 or croak "Error executing $cmd: $!";
+    $cmd = $config->{'mummer_dir'}
+      . "/delta-filter -1 $tmpdir/SIS/sis.delta 2>$tmpdir/SIS/delta-filter.log > $tmpdir/SIS/sis.filter";
+    system($cmd) == 0 or croak "Error executing $cmd: $!";
+    $cmd = $config->{'mummer_dir'}
+      . "/show-coords $tmpdir/SIS/sis.filter 2>$tmpdir/SIS/show-coords.log > $tmpdir/SIS/sis.coords";
+    system($cmd) == 0 or croak "Error executing $cmd: $!";
+
+    $cmd = $config->{'sis_dir'} . "sis.py $tmpdir/SIS/sis.coords > $tmpdir/SIS/sis.sis";
+    system($cmd) == 0 or croak "Error executing $cmd: $!";
+    $cmd = $config->{'sis_dir'} . "multifasta.py $tmpdir/SIS/sis.sis $tmpdir/contigs.fasta";
+    system($cmd) == 0 or croak "Error executing $cmd: $!";
+
+    # Build a multifasta file of N-gapped scaffolds
+    opendir SIS, "$tmpdir/SIS" or die "Error opening $tmpdir/SIS: $!";
+    my @scaffolds = grep /.fna$/, readdir SIS;
+    close SIS;
+
+    my ( @multi, @singletons );
+
+    foreach my $scaffold (@scaffolds) {
+
+        my $contig_count = `grep -c '>' $tmpdir/SIS/$scaffold`;
+        chomp $contig_count;
+
+        if ( $contig_count > 1 ) {
+            push @multi, $scaffold;
+        }
+        else {
+            push @singletons, $scaffold;
+        }
+    }
+
+    my $multiFastaIO = Bio::SeqIO->new( -format => 'fasta',
+                                        -file   => ">$tmpdir/SIS/scaffolds.fasta" );
+
+    my $unplacedIO = Bio::SeqIO->new( -format => 'fasta',
+                                      -file   => ">$tmpdir/SIS/unplaced_contigs.fasta" );
+    my $i = 0;
+    foreach my $scaffold (@multi) {
+
+        my $io = Bio::SeqIO->new( -format => 'fasta',
+                                  -file   => "$tmpdir/SIS/$scaffold" );
+        my $scaffold = Bio::Seq->new( -display_id => "scaffold_" . ++$i );
+        while ( my $seq = $io->next_seq ) {
+            if ( $scaffold->length() > 0 ) {
+                $scaffold->seq( $scaffold->seq() . 'N' x 100 . $seq->seq() );
+            }
+            else {
+                $scaffold->seq( $seq->seq() );
+            }
+        }
+        $multiFastaIO->write_seq($scaffold);
+    }
+
+    # create a multifasta file of unplaced contigs
+    foreach my $scaffold (@singletons) {
+        my $io = Bio::SeqIO->new( -format => 'fasta',
+                                  -file   => "$tmpdir/SIS/$scaffold" );
+        my $seq = $io->next_seq();
+        $unplacedIO->write_seq($seq);
+
+    }
+
+    exit(0);
+
+}
