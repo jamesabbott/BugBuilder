@@ -25,7 +25,7 @@ latex installed on your machine you can build the documentation locally:
 <code>
 [jamesa@codon ~]$ cd BugBuilder/doc
 [jamesa@codon ~]$ ./build.sh
-</code
+</code>
 
 
 
