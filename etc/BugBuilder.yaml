@@ -2,8 +2,8 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/etc/BugBuilder.yaml $
 # $Author: jamesa $
-# $Revision: 58 $
-# $Date: 2013-09-01 14:14:01 +0100 (Sun, 01 Sep 2013) $
+# $Revision: 68 $
+# $Date: 2013-09-04 13:19:54 +0100 (Wed, 04 Sep 2013) $
 #
 # BugBuilder configuration in YAML format
 #
@@ -32,7 +32,7 @@ sis_dir: /usr/local/SIS/current/
 sspace_dir: /usr/local/sspace/current/
 # Location where GapFiller is installed
 gapfiller_dir: /usr/local/GapFiller/current/
-# Location where $ is installed
+# Location where R is iQCtalled
 R_dir: /usr/local/R/current/
 # Location where PROKKA is installed
 prokka_dir: /usr/local/prokka/prokka-1.5.2/
@@ -57,20 +57,28 @@ ncbi_utils_dir: /usr/local/ncbi_utils/current/
 # Location where tbl2asn is installed
 tbl2asn_dir: /usr/local/ncbi_utils/tbl2asn/current/
 
+#Set the python_path and perl_path attributes to enable 
+# Perl and Python modules installed in locations  to be found...
+#python_lib_path: 
+#perl_lib_path:
+
 # Assembler configuration
 assemblers:
    - name: abyss 
-     command: /usr/local/abyss/current/bin/abyss-pe in='__FASTQ1__  __FASTQ2__' name=abyss k=61
-     contig_output: __TMPDIR__/abyss/abyss-contigs.fa
-     scaffold_output: __TMPDIR__/abyss/abyss-scaffolds.fa
      create_dir: 1
      priority: 1
+     command_pe: /usr/local/abyss/current/bin/abyss-pe in='__FASTQ1__  __FASTQ2__' name=abyss
+     contig_output: __TMPDIR__/abyss/abyss-contigs.fa
+     scaffold_output: __TMPDIR__/abyss/abyss-scaffolds.fa
+     default_args: k=61
    - name: spades
-     command: /usr/local/spades/current/spades.py -1 __FASTQ1__ -2 __FASTQ2__ -t 8 -o __TMPDIR__/spades
-     contig_output: __TMPDIR__/spades/contigs.fasta
-     scaffold_output: __TMPDIR__/spades/scaffolds.fasta
      create_dir: 0
      priority: 2
+     command_pe: /usr/local/spades/current/spades.py -1 __FASTQ1__ -2 __FASTQ2__ -o __TMPDIR__/spades
+     command_se: /usr/local/spades/current/spades.py -s __FASTQ1__ -o __TMPDIR__/spades
+     contig_output: __TMPDIR__/spades/contigs.fasta
+     scaffold_output: __TMPDIR__/spades/scaffolds.fasta
+     default_args: -t 8
 # Scaffolder configuration
 scaffolders:
    - name: SIS
@@ -80,9 +88,11 @@ scaffolders:
      unscaffolded_output: __TMPDIR__/SIS/unplaced_contigs.fasta
      create_dir: 1
      priority: 1
+     #default_args:
    - name: sspace
-     linkage_evidece: paired-ends
+     linkage_evidence: paired-ends
      command: __BUGBUILDER_BIN__/run_sspace --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__ 
      scaffold_output: __TMPDIR__/sspace/BugBuilder.scaffolds.fasta
      create_dir: 1
      priority: 2
+     #default_args:

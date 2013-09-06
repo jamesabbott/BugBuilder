@@ -4,8 +4,8 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/BugBuilder $
 # $Author: jamesa $
-# $Revision: 58 $
-# $Date: 2013-09-01 14:14:01 +0100 (Sun, 01 Sep 2013) $
+# $Revision: 68 $
+# $Date: 2013-09-04 13:19:54 +0100 (Wed, 04 Sep 2013) $
 #
 # This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
 # and is distributed under the Artistic License 2.0 - see accompanying LICENSE
@@ -21,7 +21,7 @@ BugBuilder
 
 =head1 SYNOPSIS
 
-  BugBuilder --fastq1 fastq_read1 --fastq2 fastq_read2 [--assembler assembler_name] [--scaffolder scaffolder_name] [--reference reference_genome.fa] [--species species_name] [-genus genus_name] [--strain strainid] [--mode submission|finishing] [--verbose] [--help]
+  BugBuilder --fastq1 fastq_read1 [--fastq2 fastq_read2] [--reference reference_genome.fa] [--help] [--manual]
 
 =head1 DESCRIPTION
 
@@ -36,21 +36,28 @@ BugBuilder
 
 =item B<fastq1>: Path to first read of pair 
 
-=item B<fastq2>: Path to second read of pair 
-
-=item B<strain>: Name of strain/isolate for inclusion in annotation results
-
 =back
 
 =head1 OPTIONAL ARGUMENTS
 
 =over 4
 
-=item B<assembler>: Assembler(s) to run
+=item B<fastq2>: Path to second read of pair 
+
+=item B<reference>: Path to fasta formatted reference sequence
+
+=item B<assembler>: Assembler(s) to run - may be specified twice, in which case the two assemblers
+will be run in parallel and the results merged using minimus.
+
+=item B<assembler_args>: Any additional arguments to pass to the assembler. Default values are set
+in the 'default_args' attribute of the configuration file. If running multiple assemblers,
+assembler_args should be specified twice, once for each assemler, in the same order than the
+assemblers are specified.
 
 =item B<scaffolder>: Scaffolder to run
 
-=item B<reference>: Path to fasta formatted reference sequence
+=item B<scaffolder_args>: Any additional arguments to pass to the scaffolder. Overides the setting
+of the 'default_args' setting in the scaffolder configuration
 
 =item B<genus>: Genus of organism sequenced (i.e. Streptococcus). Included in resutling EMBL file, and passed to Prokka during annotation stage. 
 
@@ -106,26 +113,13 @@ use Bio::DB::Fasta;
 use Text::ASCIITable;
 
 my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
-# Although we execute tools using fully qualified paths,
-# some of these expect certain things to be on path...
-$ENV{'PATH'} =
-    $ENV{'PATH'} . ':'
-  . $config->{'R_dir'} . '/bin:'
-  . $config->{'blast_dir'} . '/bin:'
-  . $config->{'mummer_dir'} . ':'
-  . $config->{'ncbi_utils_dir'} . ':'
-  . $config->{'tbl2asn_dir'} . ':'
-  . $config->{'aragorn_dir'} . '/bin:'
-  . $config->{'prodigal_dir'} . ':'
-  . $config->{'hmmer3_dir'} . '/bin:'
-  . $config->{'rnammer_dir'} . ':'
-  . $config->{'infernal_dir'} . '/bin';
-
-$ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'fastqident_dir'};
+set_paths($config);
 
 {
-    my ( $help, $man, $reference, $fastq1, $fastq2, @assemblers, $scaffolder, $locustag, $centre, $keepall,);
+    my (
+         $help,           $man,        $reference,       $fastq1,   $fastq2, @assemblers,
+         @assembler_args, $scaffolder, $scaffolder_args, $locustag, $centre, $keepall
+       );
 
     my $mode    = 'submission';
     my $species = 'unknown_species';
@@ -133,70 +127,55 @@ $ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'fastqident_dir'};
     my $strain  = 'unknown_strain';
 
     my $result = GetOptions(
-                             'reference:s'  => \$reference,
-                             'fastq1=s'     => \$fastq1,
-                             'fastq2=s'     => \$fastq2,
-                             'assembler:s'  => \@assemblers,
-                             'scaffolder:s' => \$scaffolder,
-                             'species=s'    => \$species,
-                             'genus=s'      => \$genus,
-                             'strain=s'     => \$strain,
-                             'locustag:s'   => \$locustag,
-                             'centre:s'     => \$centre,
-                             'mode=s'       => \$mode,
-                             'keepall'      => \$keepall,
-                             'help'         => \$help,
-                             'man'          => \$man,
+                             'reference:s'       => \$reference,
+                             'fastq1=s'          => \$fastq1,
+                             'fastq2:s'          => \$fastq2,
+                             'assembler:s'       => \@assemblers,
+                             'assembler_args:s'  => \@assembler_args,
+                             'scaffolder:s'      => \$scaffolder,
+                             'scaffolder_args:s' => \$scaffolder_args,
+                             'species=s'         => \$species,
+                             'genus=s'           => \$genus,
+                             'strain=s'          => \$strain,
+                             'locustag:s'        => \$locustag,
+                             'centre:s'          => \$centre,
+                             'mode=s'            => \$mode,
+                             'keepall'           => \$keepall,
+                             'help'              => \$help,
+                             'man'               => \$man,
                            );
 
     croak "\nUnknown argument: @ARGV" if "@ARGV";
     pod2usage( verbose => 2 ) if ($man);
-    pod2usage( verbose => 1, message=>\&show_tools($config) )
-      if ( $help || !$fastq1 || !$fastq2 );
+    pod2usage( verbose => 1, message => \&show_tools($config) )
+      if ( $help || !$fastq1 );
 
     if ($reference) {
         croak "\n$reference does not exist" unless ( -e $reference );
     }
-    croak "\n$fastq1 does not exist" unless ( -e $fastq1 );
-    croak "\n$fastq2 does not exist" unless ( -e $fastq2 );
-    croak "\nInvalid mode: $mode"    unless ( $mode eq 'submission' || $mode eq 'finishing' );
+    croak "\n$fastq1 does not exist" if ( !-e $fastq1 );
+    croak "\n$fastq2 does not exist" if ( defined($fastq2) && ( !-e $fastq2 ) );
+    croak "\nInvalid mode: $mode" unless ( $mode eq 'submission' || $mode eq 'finishing' );
 
-    # sanity check requested assemblers...
-    my @available_assemblers = map { $_->[0] }
-			       sort { $a->[1] <=> $b->[1] }
-			       map { [ $_->{'name'}, $_->{'priority'} ] } @{$config->{'assemblers'}};
+    my $paired = 1 if ( defined($fastq2) );
 
-    croak "\nA maximum of 2 assemblers can be requested\n" if ( $#assemblers > 1 );
-    foreach my $assembler (@assemblers) {
-        unless ( grep (/^$assembler$/, @available_assemblers) ) {
-            croak "\nError: $assembler is not a valid assembler\n\n" . "The following assemblers are configured: ",
-              join( ", ", @available_assemblers ), "\n\n";
-        }
-    }
-    if ( $#assemblers == -1 ) {
-        push @assemblers, ( @available_assemblers)[0];
-    }
-
-    # and the scaffolder...
-    my @available_scaffolders = map { $_->[0] }
-			       sort { $a->[1] <=> $b->[1] }
-			       map { [ $_->{'name'}, $_->{'priority'} ] } @{$config->{'scaffolders'}};
-    if ($scaffolder) {
-        unless ( grep (/^$scaffolder$/,  @available_scaffolders )) {
-            croak "\nError: $scaffolder is not a valid scaffolder\n\n" . "The following scaffolders are configured: ",
-              join( ", ", @available_scaffolders ), "\n\n";
-        }
-    }
+    my ( $sel_assemblers, $sel_scaffolder ) = select_tools( $config, \@assemblers, $scaffolder, $paired, $reference );
+    @assemblers = @$sel_assemblers;
+    $scaffolder = $sel_scaffolder;
 
     my $organism = "$genus $species strain $strain";
     my $orig_dir = cwd();
 
-    message("Preparing to build your bug...");
+    message("Welcome to BugBuilder");
 
     print "Selected assemblers: ", join( ",", @assemblers ), "\n";
     print "Selected scaffolder: $scaffolder\n" if ($scaffolder);
+    print "Running in $mode mode\n";
 
-    my $tmpdir = setup_tempdir( $fastq1, $fastq2, $reference );
+    print "\nPreparing to build your bug...\n";
+
+    my $tmpdir_ref = setup_tempdir( $fastq1, $fastq2, $reference );
+    my $tmpdir = $tmpdir_ref->dirname();
 
     my $encoding = identify_quality_encoding($tmpdir);
     quality_trim_reads( $tmpdir, $encoding );
@@ -208,26 +187,33 @@ $ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'fastqident_dir'};
     #if we are running a single assembler we need to symlink its contig output
     # into $tmpdir - pass a $link flag to run_assembler
     $link = 1 if ( $#assemblers == 0 );
-    foreach my $assembler (@assemblers) {
+    for ( my $i = 0 ; $i <= $#assemblers ; $i++ ) {
         $pm->start and next();
-        run_assembler( $tmpdir, $assembler, $reference, $link );
+        my $assembler = $assemblers[$i];
+        my $args      = $assembler_args[$i];
+        run_assembler( $tmpdir, $assembler, $reference, $args, $link );
         $pm->finish();
     }
     $pm->wait_all_children;
 
     merge_assemblies($tmpdir) if ( $#assemblers == 1 );
 
-    run_bwa( $tmpdir, 'contigs.fasta' );
-    my ( $min_insert, $max_insert, $insert_size, $stddev ) = get_insert_stats("$tmpdir");
+    my ( $min_insert, $max_insert, $insert_size, $stddev );
+    if ($fastq2) {
+        run_bwa( $tmpdir, 'contigs.fasta' );
+        ( $min_insert, $max_insert, $insert_size, $stddev ) = get_insert_stats("$tmpdir");
+    }
 
-    # scaffolding...should only run if we have a reference sequence
     my $scaffold_type = 'paired-ends';    #used to set linkage evidence in agp file
-    $scaffold_type = run_scaffolder( $tmpdir, $scaffolder, basename($reference), $insert_size, $stddev )
+    $scaffold_type =
+      run_scaffolder( $tmpdir, $scaffolder, $scaffolder_args, basename($reference), $insert_size, $stddev )
       if ($scaffolder);
 
     if ( -e "$tmpdir/scaffolds.fasta" && $reference ) {
         order_scaffolds( $tmpdir, basename($reference) );
-        run_gapfiller( $tmpdir, $insert_size, $stddev );
+
+        #gapfiller requires paired libraries
+        run_gapfiller( $tmpdir, $insert_size, $stddev ) if ($fastq2);
     }
     if ( -e "$tmpdir/scaffolds.fasta" ) {
         build_agp( $tmpdir, $organism, $mode, $scaffold_type );
@@ -237,8 +223,12 @@ $ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'fastqident_dir'};
     for my $i (qw(1 2)) {
         $pm->start and next();
         if ( $i == 1 ) {
-            run_bwa( $tmpdir, 'contigs.fasta' );
-            amosvalidate( $tmpdir, $insert_size, $stddev );
+
+            #amosvalidate fails if we don't have mate-pairs
+            if ( -e "$tmpdir/read2.fastq" ) {
+                run_bwa( $tmpdir, 'contigs.fasta' );
+                amosvalidate( $tmpdir, $insert_size, $stddev );
+            }
         }
         elsif ( $i == 2 ) {
             run_prokka( $tmpdir, $genus, $species, $strain, $locustag, $centre );
@@ -247,11 +237,14 @@ $ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'fastqident_dir'};
     }
     $pm->wait_all_children();
 
-    get_contig_to_iid_mapping($tmpdir);
-    my $amosvalidate_results = summarise_amosvalidate($tmpdir);
+    my $amosvalidate_results;
+    if ( -e "$tmpdir/read2.fastq" ) {
+        get_contig_to_iid_mapping($tmpdir);
+        $amosvalidate_results = summarise_amosvalidate($tmpdir);
+    }
+    merge_annotations( $tmpdir, $amosvalidate_results, $genus, $species, $strain );
 
     build_comparisons( $tmpdir, basename($reference), $organism ) if ($reference);
-    merge_annotations( $tmpdir, $amosvalidate_results, $genus, $species, $strain );
 
     message("Final Assembly Statistics...");
     get_contig_stats( "$tmpdir/contigs.fasta", 'contigs' );
@@ -275,10 +268,154 @@ $ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'fastqident_dir'};
     print "\nAnnotated features\n==================\n\n";
     print $tb, "\n";
 
-    return_results( $tmpdir, $organism, $orig_dir, $keepall );
+    return_results( $tmpdir, $organism, $orig_dir, $keepall, $mode );
     chdir $orig_dir or cluck "Failed to chdir:$ !";
 
     message("All done...");
+
+}
+
+######################################################################
+#
+# set_paths
+#
+# Setups the PATH, PYTHONPATH and PERL5LIB environmental variables
+# according to the specifications in the config...
+#
+# required arguments: $ (config hashref)
+#
+# returns:            0
+#
+######################################################################
+
+sub set_paths {
+
+    my $config = shift;
+
+    # Although we execute tools using fully qualified paths,
+    # some of these expect certain things to be on path...
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'R_dir'} . '/bin'
+      if ( $config->{'R_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'blast_dir'} . '/bin'
+      if ( $config->{'blast_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'mummer_dir'}
+      if ( $config->{'mummer_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'ncbi_utils_dir'}
+      if ( $config->{'ncbi_utils_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'tbl2asn_dir'}
+      if ( $config->{'tbl2asn_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'aragorn_dir'} . '/bin'
+      if ( $config->{'aragorn_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'prodigal_dir'}
+      if ( $config->{'prodigal_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'hmmer3_dir'} . '/bin'
+      if ( $config->{'hmmer3_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'rnammer_dir'}
+      if ( $config->{'rnammer_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'infernal_dir'} . '/bin'
+      if ( $config->{'infernal_dir'} );
+
+    if ( $config->{'python_lib_path'} ) {
+        if ( $ENV{'PYTHONPATH'} ) {
+            $ENV{'PYTHONPATH'} = "$ENV{'PYTONPATH'}:" . $config->{'python_lib_path'};
+        }
+        else {
+            $ENV{'PYTHONPATH'} = $config->{'python_lib_path'};
+        }
+    }
+
+    if ( $config->{'perl_lib_path'} ) {
+        if ( $ENV{'PERL5LIB'} ) {
+            $ENV{'PERL5LIB'} = "$ENV{'PERL5LIB'}:" . $config->{'perl_lib_path'};
+        }
+        else {
+            $ENV{'PERL5LIB'} = $config->{'perl_lib_path'};
+        }
+    }
+    return;
+}
+
+######################################################################
+#
+# select_tools
+#
+# Selects appropriate assemblers and scaffolder from configured
+# options, while checking for validity of selections...
+#
+# required params: $ ($config hash ref)
+#                  $ (arrayref of requested assemblers)
+#                  $ (name of requested scaffolder)
+#                  $ (paired - flag to indicate we are using paired reads
+#                  $ (reference - indicates a reference has been provided)
+#
+# returns          $ (arrayref of assemblers to use)
+#                  $ (name of scaffolder to use)
+#
+######################################################################
+
+sub select_tools {
+
+    my $config     = shift;
+    my $assemblers = shift;
+    my $scaffolder = shift;
+    my $paired     = shift;
+    my $reference  = shift;
+
+    my @assemblers = @$assemblers;
+
+    # sanity check requested assemblers...
+    my @available_assemblers = map { $_->[0] }
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'assemblers'} };
+
+    croak "\nA maximum of 2 assemblers can be requested\n" if ( $#assemblers > 1 );
+    foreach my $assembler (@assemblers) {
+        unless ( grep ( /^$assembler$/, @available_assemblers ) ) {
+            croak "\nError: $assembler is not a valid assembler\n\n" . "The following assemblers are configured: ",
+              join( ", ", @available_assemblers ), "\n\n";
+        }
+    }
+
+    # select a default...
+    if ( $#assemblers == -1 ) {
+        push @assemblers, (@available_assemblers)[0];
+    }
+    foreach my $assembler (@assemblers) {
+        my $assemblers = $config->{'assemblers'};
+        foreach my $conf_assembler (@$assemblers) {
+            if ( $conf_assembler->{'name'} eq $assembler ) {
+                if ( !$paired & !$conf_assembler->{'command_se'} ) {
+                    croak "\nError: $assembler requires paired reads, but you only specified one fastq file...";
+                }
+            }
+        }
+    }
+
+    # and the scaffolder...
+    my @available_scaffolders = map { $_->[0] }
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'scaffolders'} };
+
+    if ($scaffolder) {
+        unless ( grep ( /^$scaffolder$/, @available_scaffolders ) ) {
+            croak "\nError: $scaffolder is not a valid scaffolder\n\n" . "The following scaffolders are configured: ",
+              join( ", ", @available_scaffolders ), "\n\n";
+        }
+        my $conf_scaffolders = $config->{'scaffolders'};
+        foreach my $conf_scaffolder (@$conf_scaffolders) {
+            if ( $conf_scaffolder->{'name'} eq $scaffolder ) {
+                if ( $conf_scaffolder->{'linkage_evidence'} eq 'paired-ends' & !$paired ) {
+                    croak "\nError: $scaffolder requires paired reads, but you only specified one fastq file...\n";
+                }
+                elsif ( $conf_scaffolder->{'linkage_evidence'} =~ /align/ & !$reference ) {
+                    croak "\nError: $scaffolder requires a reference for alignment, but none is specified...\n";
+                }
+            }
+
+        }
+    }
+
+    return ( \@assemblers, $scaffolder );
 
 }
 
@@ -315,24 +452,29 @@ sub setup_tempdir {
         }
     }
     my $tempdir = File::Temp->newdir( DIR => $scratch_dir );
-    $tempdir->unlink_on_destroy(0);
+    $tempdir->unlink_on_destroy(1);
     message( "Created working directory: " . $tempdir->dirname );
     my $tmpdir = $tempdir->dirname;
 
     my $basename = basename($fastq1);
     copy( $fastq1, $tempdir->dirname() ) or croak "Error copying $basename: $!";
 
-    $basename = basename($fastq2);
-    copy( $fastq2, $tempdir->dirname() ) or croak "Error copying $basename: $!";
+    if ($fastq2) {
+        $basename = basename($fastq2);
+        copy( $fastq2, $tempdir->dirname() ) or croak "Error copying $basename: $!";
+    }
 
     if ($fasta) {
         $basename = basename($fasta);
-        copy( $fasta, $tempdir->dirname() ) or croak "Error copying $basename: $!";
+        copy( $fasta, $tempdir->dirname() )
+          or croak "Error copying $basename: $!";
     }
 
     # we've seen some miseq fastq files have -1/-2 rather that /1 /2 pair ids which cause
     # problems with older software which doesn't expect this
-    foreach my $file ( basename($fastq1), basename($fastq2) ) {
+    my @fastqs = ( basename($fastq1) );
+    push @fastqs, basename($fastq2) if ($fastq2);
+    foreach my $file (@fastqs) {
         open FASTQ, "$tmpdir/$file" or croak "Error opening $tmpdir/$file:$!";
         open NEW, ">$tmpdir/$file.new"
           or croak "Error opening $tmpdir/$file.new: $!";
@@ -349,9 +491,10 @@ sub setup_tempdir {
     symlink( basename($fastq1), "$tmpdir/read1.fastq" )
       or croak "Error  symlinking $fastq1: $!";
     symlink( basename($fastq2), "$tmpdir/read2.fastq" )
-      or croak "Error  symlinking $fastq1: $!";
+      or croak "Error  symlinking $fastq1: $!"
+      if ($fastq2);
 
-    return $tempdir->dirname();
+    return $tempdir;
 
 }
 
@@ -366,6 +509,7 @@ sub setup_tempdir {
 #                  $ (strain)
 #                  $ (dircopy - flag to indicate entire directory
 #                     should be returned)
+#                  $ (mode)
 #
 # returns        : $ (0)
 #
@@ -377,6 +521,7 @@ sub return_results {
     my $organism     = shift;
     my $original_dir = shift;
     my $dircopy      = shift;
+    my $mode         = shift;
 
     $organism =~ s/ /_/g;
 
@@ -397,17 +542,22 @@ sub return_results {
             push @files, @found;
         }
 
-        mkdir "$original_dir/BugBuilder_$organism" or croak "Error creating $original_dir/BugBuilder_$organism: $!";
+        mkdir "$original_dir/BugBuilder_$organism"
+          or croak "Error creating $original_dir/BugBuilder_$organism: $!";
 
         foreach my $file (@files) {
             copy( "$tmpdir/$file", "$original_dir/BugBuilder_$organism/$file" )
               or croak "Error copying $file: $!"
               if ( -e "$tmpdir/$file" );
         }
+        if ( $mode eq 'finishing' ) {
+            dircopy( "$tmpdir/amos/assembly.bnk", "$original_dir/BugBuilder_$organism/assembly.bnk" )
+              or croak "Error coying $tmpdir/amos/assembly.bnk: $!";
+        }
         chdir $original_dir or croak "Could not chdir to $original_dir: $!";
 
     }
-    rmtree($tmpdir)     or croak "Error removing $tmpdir: $!";
+
 }
 
 #######################################################################
@@ -425,10 +575,10 @@ sub return_results {
 sub identify_quality_encoding {
 
     my $tmpdir = shift;
-    my $cmd =
-        $config->{'fastqident_dir'}
-      . "bin/fastqident"
-      . " $tmpdir/read1.fastq $tmpdir/read2.fastq > $tmpdir/fastq_format.txt";
+    my $cmd    = $config->{'fastqident_dir'} . "bin/fastqident" . " $tmpdir/read1.fastq ";
+    $cmd .= "$tmpdir/read2.fastq " if ( -e "$tmpdir/read2.fastq" );
+    $cmd .= "> $tmpdir/fastq_format.txt";
+
     system($cmd) == 0 or croak "Error executing $cmd: $!";
     open QUAL, "$tmpdir/fastq_format.txt";
     my $res;
@@ -444,10 +594,6 @@ sub identify_quality_encoding {
         $qual =~ s/[ ']//g;
         chomp $qual;
         push @quals, $qual;
-    }
-
-    if ( $quals[0] ne $quals[1] ) {
-        croak "Fastq files appear to have different quality encodings ($quals[0] and $quals[1])";
     }
 
     message("Fastq quality encoding identifed as $quals[0]...");
@@ -477,11 +623,17 @@ sub quality_trim_reads {
     mkdir "$tmpdir/qc_trim" or croak "Error creating $tmpdir/qc_trim: $!";
     chdir "$tmpdir/qc_trim" or croak "Error running chdir $tmpdir/qc_trim: $!";
 
-    my $cmd =
-        $config->{'sickle_dir'}
-      . "sickle pe -f $tmpdir/read1.fastq "
-      . "-r $tmpdir/read2.fastq -t $encoding -o read1.fastq -p read2.fastq "
-      . "-s singles.fastq > sickle.log";
+    my $cmd = $config->{'sickle_dir'};
+    if ( -e "$tmpdir/read2.fastq" ) {
+        $cmd .=
+            "sickle pe -f $tmpdir/read1.fastq "
+          . "-r $tmpdir/read2.fastq -t $encoding -o read1.fastq -p read2.fastq "
+          . "-s singles.fastq > sickle.log";
+    }
+    else {
+        $cmd .= "sickle se -f $tmpdir/read1.fastq " . "-t $encoding -o read1.fastq > sickle.log";
+    }
+
     system($cmd) == 0 or croak "Error executing $cmd: $!";
 
     open LOG, "sickle.log" or croak "Could not open sickle.log: $!";
@@ -495,15 +647,31 @@ sub quality_trim_reads {
 
     unlink("$tmpdir/read1.fastq")
       or croak "Error unlinking $tmpdir/read1.fastq: $!";
-    unlink("$tmpdir/read2.fastq")
-      or croak "Error unlinking $tmpdir/read2.fastq: $!";
     symlink( "qc_trim/read1.fastq", "read1.fastq" )
       or croak "Error creating read1.fastq symlink: $!";
-    symlink( "qc_trim/read2.fastq", "read2.fastq" )
-      or croak "Error creating read2.fastq symlink: $!";
+    if ( -e "$tmpdir/read2.fastq" ) {
+        unlink("$tmpdir/read2.fastq")
+          or croak "Error unlinking $tmpdir/read2.fastq: $!";
+        symlink( "qc_trim/read2.fastq", "read2.fastq" )
+          or croak "Error creating read2.fastq symlink: $!";
+    }
 
     message("Reads QC trimmed...");
+
     print $res;
+    my ( $kept, $discarded );
+
+    if ( -e "$tmpdir/read2.fastq" ) {
+        $kept      = $1 if ( $res =~ /FastQ paired records kept: ([0-9]+)/ );
+        $discarded = $1 if ( $res =~ /FastQ paired records discarded: ([0-9]+)/ );
+    }
+    else {
+        $kept      = $1 if ( $res =~ /FastQ records kept: ([0-9]+)/ );
+        $discarded = $1 if ( $res =~ /FastQ records discarded: ([0-9]+)/ );
+    }
+
+    croak "\nWarning: >10% of reads discarded. Please carry out full QC on this library\n\n"
+      if ( ( $discarded / $kept * 100 ) > 10 );
 
     return ();
 
@@ -518,6 +686,7 @@ sub quality_trim_reads {
 # required params: $ (tmpdir)
 #                  $ (assembler name)
 #                  $ (reference fasta sequece - probably not needed)
+#                  $ (arguments to pass to assembler)
 #                  $ (link - flag to indicate contigs should be symlinked into tmpdir)
 #
 # returns          $ (0)
@@ -529,6 +698,7 @@ sub run_assembler {
     my $tmpdir    = shift;
     my $assembler = shift;
     my $reference = shift;
+    my $args      = shift;
     my $link      = shift;
 
     my ( $cmd, $contig_output, $scaffold_output, $create );
@@ -536,17 +706,31 @@ sub run_assembler {
     my $assemblers = $config->{'assemblers'};
     foreach my $conf_assembler (@$assemblers) {
         if ( $conf_assembler->{'name'} eq $assembler ) {
-            $cmd             = $conf_assembler->{'command'};
+            if ( -e "$tmpdir/read2.fastq" ) {
+                $cmd = $conf_assembler->{'command_pe'};
+            }
+            else {
+                $cmd = $conf_assembler->{'command_se'};
+            }
+            if ($args) {
+                $cmd .= " $args";
+            }
+            else {
+                $cmd .= " " . $conf_assembler->{'default_args'};
+            }
             $contig_output   = $conf_assembler->{'contig_output'};
-            $scaffold_output = $conf_assembler->{'scaffold_output'} if ( $conf_assembler->{'scaffold_output'} );
-            $create          = $conf_assembler->{'create_dir'};
+            $scaffold_output = $conf_assembler->{'scaffold_output'}
+              if ( $conf_assembler->{'scaffold_output'} );
+            $create = $conf_assembler->{'create_dir'};
         }
     }
     croak "Assembler $assembler is not defined" unless ($cmd);
 
     if ($create) {
-        mkdir "$tmpdir/$assembler" or croak "could not create $tmpdir/$assembler: $!";
-        chdir "$tmpdir/$assembler" or croak "could not chdir to $tmpdir/$assembler: $!";
+        mkdir "$tmpdir/$assembler"
+          or croak "could not create $tmpdir/$assembler: $!";
+        chdir "$tmpdir/$assembler"
+          or croak "could not chdir to $tmpdir/$assembler: $!";
     }
 
     foreach ( $cmd, $contig_output, $scaffold_output ) {
@@ -565,7 +749,9 @@ sub run_assembler {
     my $header = "$assembler assembly statistics";
     print $header . "\n" . '=' x length($header) . "\n\n";
     get_contig_stats( "$contig_output", 'contigs' );
-    get_contig_stats( "$scaffold_output", 'scaffolds' ) if ($scaffold_output);
+
+    # Only generate scaffold stats for paired read alignments...
+    get_contig_stats( "$scaffold_output", 'scaffolds' ) if ( $scaffold_output && -e "$tmpdir/read2.fastq" );
 
     # rename contigs/scaffolds for consistent naming, since we need to retrieve by
     # id later, so it helps if we know what the ids look like...
@@ -574,8 +760,10 @@ sub run_assembler {
         chdir $outdir or croak "Error changing to dir $outdir: $!";
     }
 
-    my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => $contig_output );
-    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">BugBuilder.contigs.fasta" );
+    my $inIO = Bio::SeqIO->new( -format => 'fasta', -file => $contig_output );
+    my $outIO =
+      Bio::SeqIO->new( -format => 'fasta',
+                       -file   => ">BugBuilder.contigs.fasta" );
     my $contig_count = 0;
     while ( my $seq = $inIO->next_seq() ) {
         my $contig_id = sprintf( "contig_%06s", ++$contig_count );
@@ -583,9 +771,11 @@ sub run_assembler {
         $outIO->write_seq($seq);
     }
 
-    if ($scaffold_output) {
-        my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => $scaffold_output );
-        my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">BugBuilder.scaffolds.fasta" );
+    if ( $scaffold_output && ( -e "$tmpdir/read2.fastq" ) ) {
+        my $inIO = Bio::SeqIO->new( -format => 'fasta', -file => $scaffold_output );
+        my $outIO =
+          Bio::SeqIO->new( -format => 'fasta',
+                           -file   => ">BugBuilder.scaffolds.fasta" );
         my $scaffold_count = 0;
         while ( my $seq = $inIO->next_seq() ) {
             my $scaffold_id = sprintf( "scaffold_%06s", ++$scaffold_count );
@@ -635,7 +825,8 @@ sub merge_assemblies {
         my $contig_output = $assembler->{'contig_output'};
         $contig_output =~ s/__TMPDIR__/$tmpdir/;
 
-        symlink( $contig_output, "$name.seq" ) or croak "Could not symlink $contig_output -> $name.seq: $!";
+        symlink( $contig_output, "$name.seq" )
+          or croak "Could not symlink $contig_output -> $name.seq: $!";
 
     }
 
@@ -693,9 +884,12 @@ sub run_bwa {
     my $bwa_dir      = $config->{'bwa_dir'};
     my $samtools_dir = $config->{'samtools_dir'};
 
-    mkdir "$tmpdir/bwa" or croak "Error creating $tmpdir/bwa: $!" if ( !-d "$tmpdir/bwa" );
+    mkdir "$tmpdir/bwa"
+      or croak "Error creating $tmpdir/bwa: $!"
+      if ( !-d "$tmpdir/bwa" );
     chdir "$tmpdir/bwa" or croak "Error chdiring to $tmpdir/bwa: $!";
-    copy( "$tmpdir/$reference", "$tmpdir/bwa/$reference" ) or croak "Error copying $tmpdir/$reference:$ !";
+    copy( "$tmpdir/$reference", "$tmpdir/bwa/$reference" )
+      or croak "Error copying $tmpdir/$reference:$ !";
 
     message("BWA aligning reads vs $reference...");
 
@@ -705,13 +899,21 @@ sub run_bwa {
     $cmd =
       "$bwa_dir/bwa aln $tmpdir/bwa/$reference $tmpdir/read1.fastq > $tmpdir/bwa/read1.sai 2> $tmpdir/bwa/bwa_sai1.log";
     system($cmd) == 0 or die "Error running $cmd";
-    $cmd =
-      "$bwa_dir/bwa aln $tmpdir/bwa/$reference $tmpdir/read2.fastq > $tmpdir/bwa/read2.sai 2> $tmpdir/bwa/bwa_sai2.log";
-    system($cmd) == 0 or die "Error running $cmd";
-    $cmd =
+    if ( -e "$tmpdir/read2.fastq" ) {
+        $cmd =
+"$bwa_dir/bwa aln $tmpdir/bwa/$reference $tmpdir/read2.fastq > $tmpdir/bwa/read2.sai 2> $tmpdir/bwa/bwa_sai2.log";
+        system($cmd) == 0 or die "Error running $cmd";
+        $cmd =
 "$bwa_dir/bwa sampe $tmpdir/bwa/$reference $tmpdir/bwa/read1.sai $tmpdir/bwa/read2.sai $tmpdir/read1.fastq $tmpdir/read2.fastq ";
-    $cmd .= "2> $tmpdir/bwa/sampe.log > $tmpdir/bwa/$reference.sam";
-    system($cmd) == 0 or die "Error running $cmd";
+        $cmd .= "2> $tmpdir/bwa/sampe.log > $tmpdir/bwa/$reference.sam";
+        system($cmd) == 0 or die "Error running $cmd";
+    }
+    else {
+        $cmd = "$bwa_dir/bwa samse $tmpdir/bwa/$reference $tmpdir/bwa/read1.sai $tmpdir/read1.fastq ";
+        $cmd .= "2> $tmpdir/bwa/samse.log > $tmpdir/bwa/$reference.sam";
+        system($cmd) == 0 or die "Error running $cmd";
+
+    }
 
     $cmd =
 "$samtools_dir/samtools view -q 10 -Sb $tmpdir/bwa/$reference.sam 2> $tmpdir/bwa/samtoolsview.log | $samtools_dir/samtools sort - $tmpdir/bwa/$reference";
@@ -744,8 +946,11 @@ sub get_insert_stats {
 
     message("Collecting insert size statistics");
 
-    mkdir "$tmpdir/insert_stats" or croak "Error creating $tmpdir/insert_stats: $!" if ( !-d "$tmpdir/insert_stats" );
-    chdir "$tmpdir/insert_stats" or croak "Error chdiring to $tmpdir/insert_stats: $!";
+    mkdir "$tmpdir/insert_stats"
+      or croak "Error creating $tmpdir/insert_stats: $!"
+      if ( !-d "$tmpdir/insert_stats" );
+    chdir "$tmpdir/insert_stats"
+      or croak "Error chdiring to $tmpdir/insert_stats: $!";
 
     my $cmd = "java -jar " . $config->{'picard_dir'} . "CollectInsertSizeMetrics.jar ";
     $cmd .= "INPUT=$tmpdir/bwa/contigs.fasta.bam HISTOGRAM_FILE=insert_histogram.pdf OUTPUT=insert_stats.txt ";
@@ -784,6 +989,7 @@ sub get_insert_stats {
 #
 # required params: $ (tmpdir)
 #                  $ (scaffolder)
+#                  $ (scaffolder args)
 #                  $ (fasta reference)
 #                  $ (library insert size)
 #	           $ (library insert sd)
@@ -794,15 +1000,16 @@ sub get_insert_stats {
 
 sub run_scaffolder {
 
-    my $tmpdir      = shift;
-    my $scaffolder  = shift;
-    my $reference   = shift;
-    my $insert_size = shift;
-    my $insert_sd   = shift;
+    my $tmpdir          = shift;
+    my $scaffolder      = shift;
+    my $scaffolder_args = shift;
+    my $reference       = shift;
+    my $insert_size     = shift;
+    my $insert_sd       = shift;
 
     message("Starting $scaffolder");
 
-    my ( $cmd, $scaffold_output, $unscaffolded_output, $create, $linkage_evidence );
+    my ( $cmd, $scaffold_output, $unscaffolded_output, $create, $linkage_evidence, $default_args );
 
     my $scaffolders = $config->{'scaffolders'};
     foreach my $conf_scaffolder (@$scaffolders) {
@@ -813,6 +1020,7 @@ sub run_scaffolder {
               if ( $conf_scaffolder->{'unscaffolded_output'} );
             $create           = $conf_scaffolder->{'create_dir'};
             $linkage_evidence = $conf_scaffolder->{'linkage_evidence'};
+            $default_args     = $conf_scaffolder->{'default_args'};
         }
     }
     croak "Scaffolder $scaffolder is not defined" unless ($cmd);
@@ -837,10 +1045,19 @@ sub run_scaffolder {
         $unscaffolded_output =~ s/__INSSD__/$insert_sd/;
     }
 
+    if ($scaffolder_args) {
+        $cmd .= " $scaffolder_args";
+    }
+    elsif ($default_args) {
+        $cmd .= " $default_args" if ($default_args);
+    }
+
     $cmd .= " >$tmpdir/$scaffolder.log 2>&1";
 
-    mkdir("$tmpdir/$scaffolder") or croak "Error creating $tmpdir/$scaffolder: $!";
-    chdir("$tmpdir/$scaffolder") or croak "Error in chdir $tmpdir/$scaffolder: $!";
+    mkdir("$tmpdir/$scaffolder")
+      or croak "Error creating $tmpdir/$scaffolder: $!";
+    chdir("$tmpdir/$scaffolder")
+      or croak "Error in chdir $tmpdir/$scaffolder: $!";
     symlink( "$tmpdir/$reference", "$tmpdir/$scaffolder/$reference" )
       or croak "Error linking $reference: $!";
 
@@ -850,7 +1067,9 @@ sub run_scaffolder {
     get_contig_stats( $scaffold_output, 'scaffolds' );
 
     chdir $tmpdir or croak "Error chdiring to $tmpdir: $!";
-    unlink "scaffolds.fasta" or croak "Error removing scaffolds.fasta: $!" if ( -e "scaffolds.fasta" );
+    unlink "scaffolds.fasta"
+      or croak "Error removing scaffolds.fasta: $!"
+      if ( -l "scaffolds.fasta" );
     symlink( $scaffold_output, "scaffolds.fasta" )
       or croak "Error creating symlink: $!";
     if ( defined($unscaffolded_output) ) {
@@ -899,13 +1118,18 @@ sub run_gapfiller {
 
     my $scaffIO = Bio::SeqIO->new( -file => "$tmpdir/scaffolds.fasta", -format => 'fasta' );
     my $filledScaffOutIO =
-      Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/GapFiller.scaffolds.fasta", -format => 'fasta' );
-    my $contigOutIO = Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/GapFiller.contigs.fasta", -format => 'fasta' );
+      Bio::SeqIO->new( -file   => ">$tmpdir/GapFiller/GapFiller.scaffolds.fasta",
+                       -format => 'fasta' );
+    my $contigOutIO =
+      Bio::SeqIO->new( -file   => ">$tmpdir/GapFiller/GapFiller.contigs.fasta",
+                       -format => 'fasta' );
 
     my $i = 0;
 
     while ( my $scaff = $scaffIO->next_seq() ) {
-        my $outIO = Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/unfilled_scaffold_" . ++$i, -format => 'fasta' );
+        my $outIO =
+          Bio::SeqIO->new( -file   => ">$tmpdir/GapFiller/unfilled_scaffold_" . ++$i,
+                           -format => 'fasta' );
         $outIO->write_seq($scaff);
 
         my $cmd = $config->{'gapfiller_dir'}
@@ -963,14 +1187,17 @@ sub build_agp {
     my $evidence = shift;
 
     croak "Unknown evidence type: $evidence"
-      unless ( $evidence eq 'paired-ends' || $evidence eq 'align_genus' || $evidence eq 'align_xgenus' );
+      unless (    $evidence eq 'paired-ends'
+               || $evidence eq 'align_genus'
+               || $evidence eq 'align_xgenus' );
 
     message("Creating AGP file...");
 
     mkdir "$tmpdir/agp" or croak "Error creating agp dir: $!";
     chdir "$tmpdir/agp" or croak "Error chdiring to $tmpdir/agp: $!";
 
-    open AGP, ">scaffolds.agp" or croak "Error opening scaffolds.agp for writing: $!";
+    open AGP, ">scaffolds.agp"
+      or croak "Error opening scaffolds.agp for writing: $!";
     print AGP "##agp-version 2.0\n";
     print AGP "#$organism\n";
 
@@ -1022,7 +1249,9 @@ sub build_agp {
                     $gap_end = $b_count;
 
                     # Output contigs only > 200 bp
-                    if ( ( ( $contig_end - $contig_start ) < 200 ) && ( $mode eq 'submission' ) ) {
+                    if (    ( ( $contig_end - $contig_start ) < 200 )
+                         && ( $mode eq 'submission' ) )
+                    {
 
                         #need to extend previous gap to new position including short contig
                         my $last_gap = pop @gaps;
@@ -1035,11 +1264,14 @@ sub build_agp {
                     }
                     else {
                         my $contig_id = sprintf( "contig_%06s", ++$contig_count );
-                        my $contig_seq = Bio::Seq->new( -display_id => $contig_id,
-                                                        -seq => join( '', @bases[ $contig_start .. $contig_end ] ) );
+                        my $contig_seq =
+                          Bio::Seq->new( -display_id => $contig_id,
+                                         -seq        => join( '', @bases[ $contig_start .. $contig_end ] ) );
                         $contig_outIO->write_seq($contig_seq);
-                        $contigs{$contig_id} =
-                          { 'coords' => $contig_start . '-' . $contig_end, length => $contig_seq->length() };
+                        $contigs{$contig_id} = {
+                                                 'coords' => $contig_start . '-' . $contig_end,
+                                                 length   => $contig_seq->length()
+                                               };
                         my $gap = $gap_start . '-' . $gap_end;
                         push @gaps, $gap;
 
@@ -1052,12 +1284,19 @@ sub build_agp {
 
         # Output last contig from last contig_start position to scaffold end if it is longer than
         # 200 bp and we are running in submission mode, otherwise remove the last gap to truncate the scaffold...
-        if ( ( ( $scaffold_end - $contig_start ) > 200 ) || ( $mode eq 'finishing' ) || $contig_count == 0 ) {
+        if (    ( ( $scaffold_end - $contig_start ) > 200 )
+             || ( $mode eq 'finishing' )
+             || $contig_count == 0 )
+        {
             my $contig_id = sprintf( "contig_%06s", ++$contig_count );
             my $contig_seq =
-              Bio::Seq->new( -display_id => $contig_id, -seq => join( '', @bases[ $contig_start .. $#bases ] ) );
+              Bio::Seq->new( -display_id => $contig_id,
+                             -seq        => join( '', @bases[ $contig_start .. $#bases ] ) );
             $contig_outIO->write_seq($contig_seq);
-            $contigs{$contig_id} = { 'coords' => $contig_start . '-' . $scaffold_end, length => $contig_seq->length() };
+            $contigs{$contig_id} = {
+                                     'coords' => $contig_start . '-' . $scaffold_end,
+                                     length   => $contig_seq->length()
+                                   };
         }
         else {
             pop @gaps;
@@ -1118,9 +1357,12 @@ sub build_agp {
     unlink "scaffolds.fasta" or croak "Error removing scaffolds.fasta: $!";
     unlink "contigs.fasta"   or croak "Error removing contigs.fasta; $!";
 
-    symlink( "agp/scaffolds.agp",   "scaffolds.agp" )   or croak "Error creating scaffolds.agp symlink: $!";
-    symlink( "agp/scaffolds.fasta", "scaffolds.fasta" ) or croak "Error creating scaffolds.fasta symlink: $!";
-    symlink( "agp/contigs.fasta",   "contigs.fasta" )   or croak "Error creating contigs.fasta symlink: $!";
+    symlink( "agp/scaffolds.agp", "scaffolds.agp" )
+      or croak "Error creating scaffolds.agp symlink: $!";
+    symlink( "agp/scaffolds.fasta", "scaffolds.fasta" )
+      or croak "Error creating scaffolds.fasta symlink: $!";
+    symlink( "agp/contigs.fasta", "contigs.fasta" )
+      or croak "Error creating contigs.fasta symlink: $!";
 
     return ();
 
@@ -1154,11 +1396,14 @@ sub run_prokka {
 
     message("Starting PROKKA run...");
 
-    my $cmd = $config->{'prokka_dir'} . "/bin/prokka --addgenes --rfam --outdir $tmpdir/prokka --prefix prokka ";
-    #my $cmd = $config->{'prokka_dir'} . "/bin/prokka --addgenes --outdir $tmpdir/prokka --prefix prokka ";
-    $cmd .= "--genus $genus "     if ( $genus   && ( $genus   ne "unknown_genus" ) );
-    $cmd .= "--species $species " if ( $species && ( $species ne "unknown_species" ) );
-    $cmd .= "--strain $strain "   if ( $strain  && ( $strain  ne "unknown_strain" ) );
+    #my $cmd = $config->{'prokka_dir'} . "/bin/prokka --addgenes --rfam --outdir $tmpdir/prokka --prefix prokka ";
+
+    my $cmd = $config->{'prokka_dir'} . "/bin/prokka --addgenes --outdir $tmpdir/prokka --prefix prokka ";
+    $cmd .= "--genus $genus " if ( $genus && ( $genus ne "unknown_genus" ) );
+    $cmd .= "--species $species "
+      if ( $species && ( $species ne "unknown_species" ) );
+    $cmd .= "--strain $strain "
+      if ( $strain && ( $strain ne "unknown_strain" ) );
     $cmd .= "--locustag $locustag " if ($locustag);
     $cmd .= "--centre $centre "     if ($centre);
     $cmd .= "$tmpdir/contigs.fasta ";
@@ -1237,7 +1482,7 @@ sub amosvalidate {
 
     message("Converting to amos bank...");
     my $cmd = $config->{'abyss_dir'} . "/bin/abyss-samtoafg ";
-    $cmd .= " -m $insert_size -s $insert_stddev ";
+    $cmd .= " -m $insert_size -s $insert_stddev " if ( $insert_size && $insert_stddev );
     $cmd .= "$tmpdir/amos/contigs.fasta $tmpdir/bwa/contigs.fasta.sam";
     $cmd .= " > amos.afg";
 
@@ -1620,14 +1865,17 @@ sub merge_annotations {
 
     message("Merging annotations");
 
-    mkdir "$tmpdir/annotation_merge" or croak "Error creating $tmpdir/annotation_merge: $!";
-    chdir "$tmpdir/annotation_merge" or croak "Error chdiring to $tmpdir/annotation_merge: $!";
+    mkdir "$tmpdir/annotation_merge"
+      or croak "Error creating $tmpdir/annotation_merge: $!";
+    chdir "$tmpdir/annotation_merge"
+      or croak "Error chdiring to $tmpdir/annotation_merge: $!";
 
     my $IO = Bio::SeqIO->new( -format => 'embl',
                               -file   => "$tmpdir/contigs.embl" );
 
-    my $outIO = Bio::SeqIO->new( -format => 'embl',
-                                 -file   => ">contigs.embl" );
+    my $outIO =
+      Bio::SeqIO->new( -format => 'embl',
+                       -file   => ">contigs.embl" );
 
     my %amos_colours = (
                          'CE_STRETCH'  => '0 128 128',
@@ -1671,27 +1919,28 @@ sub merge_annotations {
         $embl_record->flush_SeqFeatures();
 
         # retrieve amosvalidate results for this contig and sort by start co-ordinate...
-        my @amos_features =
-          map  { $_->[0] }
-          sort { $a->[1] <=> $b->[1] }
-          map  { [ $_, $_->{'start'} ] } @{ $amosvalidate_results->{$orig_id} };
+        if ($amosvalidate_results) {
+            my @amos_features =
+              map  { $_->[0] }
+              sort { $a->[1] <=> $b->[1] }
+              map  { [ $_, $_->{'start'} ] } @{ $amosvalidate_results->{$orig_id} };
 
-        foreach my $feature (@amos_features) {
-            my $colour = $amos_colours{ $feature->{'type'} };
-            my $note   = $amos_notes{ $feature->{'type'} };
-            my $feature =
-              new Bio::SeqFeature::Generic(
-                                            -start       => $feature->{'start'},
-                                            -end         => $feature->{'end'},
-                                            -primary_tag => 'misc_feature',
-                                            -tag         => {
-                                                      'note'   => $note,
-                                                      'colour' => $colour,
-                                                    }
-                                          );
-            push @features, $feature;
+            foreach my $feature (@amos_features) {
+                my $colour = $amos_colours{ $feature->{'type'} };
+                my $note   = $amos_notes{ $feature->{'type'} };
+                my $feature =
+                  new Bio::SeqFeature::Generic(
+                                                -start       => $feature->{'start'},
+                                                -end         => $feature->{'end'},
+                                                -primary_tag => 'misc_feature',
+                                                -tag         => {
+                                                          'note'   => $note,
+                                                          'colour' => $colour,
+                                                        }
+                                              );
+                push @features, $feature;
+            }
         }
-
         my $source =
           new Bio::SeqFeature::Generic(
                                         -start       => 1,
@@ -1719,7 +1968,8 @@ sub merge_annotations {
 
     chdir $tmpdir         or croak "Error chdiring to $tmpdir: $!";
     unlink "contigs.embl" or croak "Error unlinking contigs.embl: $!";
-    symlink( "annotation_merge/contigs.embl", "contigs.embl" ) or croak "Error creating contigs.embl symlink: $!";
+    symlink( "annotation_merge/contigs.embl", "contigs.embl" )
+      or croak "Error creating contigs.embl symlink: $!";
 
 }
 
@@ -1870,7 +2120,6 @@ sub get_embl_date {
 
 }
 
-
 ######################################################################
 #
 # show_tools
@@ -1878,7 +2127,7 @@ sub get_embl_date {
 # Reports on configured assemblers and scaffolders
 #
 # Required params: $ (config hash)
-# 
+#
 # Returns:         $ ()
 #
 ######################################################################
@@ -1888,15 +2137,15 @@ sub show_tools {
     my $config = shift;
 
     my @available_assemblers = map { $_->[0] }
-			       sort { $a->[1] <=> $b->[1] }
-			       map { [ $_->{'name'}, $_->{'priority'} ] } @{$config->{'assemblers'}};
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'assemblers'} };
     my @available_scaffolders = map { $_->[0] }
-			       sort { $a->[1] <=> $b->[1] }
-			       map { [ $_->{'name'}, $_->{'priority'} ] } @{$config->{'scaffolders'}};
-    
-    print "\nBugBuilder\n\n";
-    print "Available assemblers: " . join(", ", @available_assemblers), "\n" .
-           "Available scaffolders: " . join(", ", @available_scaffolders), "\n\n";
-    
-    return();
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'scaffolders'} };
+
+    print "\nWelcome to BugBuilder\n\n";
+    print "Available assemblers: " . join( ", ", @available_assemblers ),
+      "\n" . "Available scaffolders: " . join( ", ", @available_scaffolders ), "\n\n";
+
+    return ();
 }

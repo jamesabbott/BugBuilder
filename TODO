@@ -1,7 +1,13 @@
-* move configuration to separate YAML file
+FEATURES
 * Add interproscan to annotation stage
-* Add script to install prerequisites...would this be maintainable?
-* Add documentation
-* Add demo/tests set from SRA
 * Add Amosvalidate singleton breakpoint results
-* check if run_sis and order_scaffolds refer to symlinked reference or passed parameter
+* Add Quast to validation
+* Output annotated ordered scaffolds.embl by merging contigs.fasta based on AGP
+* Try to join ends of scaffolds following splitting round origin - currently best we can do is two scaffolds since we can scaffold to one then split it, but GapFiller doesn't necessarily rejoin the ends
+
+BUGS
+* BUG: Occasional assemblies seem to randomly come out backwards..
+
+OTHER
+* Installation script...
+* Add demo/tests set from SRA

@@ -1,18 +1,23 @@
 % $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/doc/BugBuilder_User_Guide.tex $
 % $Author: jamesa $
-% $Revision: 56 $
-% $Date: 2013-09-01 10:18:40 +0100 (Sun, 01 Sep 2013) $
+% $Revision: 68 $
+% $Date: 2013-09-04 13:19:54 +0100 (Wed, 04 Sep 2013) $
 
-\documentclass[a4paper,twoside,10pt]{article}
+\documentclass[a4paper,10pt]{article}
 \usepackage{graphicx}
+\usepackage{fullpage}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
 \usepackage[hyphens]{url}
 \usepackage{hyperref}
-\pagestyle{headings}
+
+\setlength{\headsep}{20pt}
+\pagestyle{fancy}
 \setlength{\parskip}{10pt plus 1pt minus 1pt}
 
 \title{BugBuilder Users Guide}
-
 \author{James Abbott (j.abbott@imperial.ac.uk)}
+\date{}
 
 \begin{document}
 
@@ -23,31 +28,30 @@
 
 \section{Introduction}
 
-BugBuilder is a pipeline enabling assembly and annotation of microbial genomes from
-high-throughput sequence data. It is designed to minimise manual work in creating draft genome
-assemblies ready for submission to public databases. BugBuilder offers a configurable framework
-capable of supporting a number of different assemblers and scaffolders which are selectable at
-runtime. It is implemented in Perl and has been tested on Red Hat derived Linux distributions,
-however should work on any Unix-like operating system which supports the prerequisite software
-components.
+BugBuilder is a pipeline enabling assembly and annotation of microbial genomes from high-throughput
+sequence data. It is designed to minimise manual work in creating draft genome assemblies ready for
+submission to public databases.  BugBuilder offers a configurable framework capable of supporting a
+number of different assemblers and scaffolders which are selectable at runtime. It is implemented
+in Perl and has been tested on Red Hat derived Linux distributions, however should work on any
+Unix-like operating system which supports the prerequisite software components.
 
 
 BugBuilder is available from \\*
-\url{http://www.imperial.ac.uk/bioinfsupport/resources/software/BugBuilder}. 
+\url{http://www.imperial.ac.uk/bioinfsupport/software/BugBuilder}. 
 
 \section{Quick Start Guide}
 
-If BugBuilder has been successfully installed on your system, you can perform an assembly simply by
-entering the command:
+If BugBuilder has been successfully installed on your system, you can perform an assembly of a
+paired-end sequencing run simply by entering the command:
 
 \begin{verbatim}
 BugBuilder --fastq1 read1.fastq --fastq2 read2.fastq
 \end{verbatim}
 
 where 'read1.fastq' contains the reads from the first read of the pair, and read2.fastq contains
-the second read.  BugBuilder will proceed to carry out the assembly, reporting it's progress to the
-screen. Once complete, the generated outputs will be written to a new directory named
-'BugBuilder-[timestamp]'.
+the second read.  If your sequence is single ended, just specify '--fastq1'.  BugBuilder will
+proceed to carry out the assembly, reporting it's progress to the screen. Once complete, the
+generated outputs will be written to a new directory. 
 
 If you have an appropriate reference genome sequence (ideally a complete genome from the same
 genus, or preferably species), this can be used to guide the scaffolding process producing fewer
@@ -86,43 +90,38 @@ BugBuilder --fastq1 read1.fastq --fastq2 read2.fastq  \
 \subsubsection{Tools}
 
 BugBuilder has a considerable number of prerequisite packages which need to be installed prior to
-running the software. Some of these are not used directly but are required by other packages
-BugBuilder does use. The vast majority of these are distributed under open source licenses. Where
-version numbers are specified, these indicate that BugBuilder has been tested using this version of
-the package.  A tar archive containing the freely-redistributable prerequisite packages is available from the
-BugBuilder website.
+running the software, summarised in the table below. Some of these are not used directly but are
+required by other packages BugBuilder does use. Where version numbers are specified, these indicate
+that BugBuilder has been tested using this version of the package. Those which are available under
+licenses permitting their redistribution (indicated by the 'In Bundle' column of the table) are
+available in a tarball.  ('BugBuilder\_Prerequisites.tar.gz') from the BugBuilder website.
+Non-bundled packages are available directly from the locations listed below.
 
-\begin{itemize}
-\item fastqident (\url{https://github.com/DarwinAwardWinner/fastqident})
-\item sickle 1.2 (\url{https://github.com/najoshi/sickle})
-\item spades 2.3.0 (\url{http://bioinf.spbau.ru/spades}) 
-\item abyss 1.3.4 (\url{http://www.bcgsc.ca/platform/bioinfo/software/abyss}) 
-\item AMOS 3.1.0 (\url{http://sourceforge.net/apps/mediawiki/amos/index.php?title=AMOS})
-\item samtools 0.1.18 (\url{http://samtools.sourceforge.net/})
-\item picard 1.56 (\url{http://picard.sourceforge.net/})
-\item SIS (\url{http://marte.ic.unicamp.br:8747/})
-\item Sspace
-(\url{http://www.baseclear.com/landingpages/basetools-a-wide-range-of-bioinformatics-solutions/sspacev12/})
-\item GapFiller 1.10
-(\url{http://www.baseclear.com/landingpages/basetools-a-wide-range-of-bioinformatics-solutions/gapfiller/})\footnote{GapFiller
-is not open source, but is freely available for academic use from BaseClear, however it is not
-included in the bundle of prerequisite packages.} 
-\item R 2.15.2 (\url{http://www.r-project.org})
-\item Prokka 1.5.2 (\url{http://www.vicbioinformatics.com/software.prokka.shtml})
-\item Aragorn 1.2.34c (\url{http://mbio-serv2.mbioekol.lu.se/ARAGORN/})
-\item Prodigal 2.60 (\url{http://prodigal.ornl.gov})
-\item HMMER3 3.1 (\url{http://hmmer.janelia.org})
-\item RNAmmer 1.2 (\url{http://http://www.cbs.dtu.dk/cgi-bin/sw_request?rnammer})\footnote{RNAmmer
-is freely available for academic use, but requires registration, so is not included with the
-prerequisite bundle}
-\item Infernal 1.1rc2 (\url{http://infernal.janelia.org})
-\item Blast+ 2.2.27
-(\url{http://http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download})
-\item BWA 0.75a (\url{http://bio-bwa.sourceforge.net})
-\item MUMmer 3.22 (\url{http://mummer.sourceforge.net/})
-\item tbl2asn (\url{ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_program/tbl2asn/})
-\end{itemize}
-
+\begin{tabular}{llll}
+{\bf Package } & {\bf Version } & { \bf In Bundle? }  & { \bf Download link }\\
+\hline
+fastqident & NA & Y & \href{https://github.com/DarwinAwardWinner/fastqident}{https://github.com/DarwinAwardWinner/fastqident} \\
+sickle  & 1.2 & Y & \href{https://github.com/najoshi/sickle}{https://github.com/najoshi/sickle}  \\
+spades & 2.3.0 & Y & \href{http://bioinf.spbau.ru/spades}{http://bioinf.spbau.ru/spades}\\
+abyss & 1.3.4 & N & \href{http://www.bcgsc.ca/platform/bioinfo/software/abyss}{http://www.bcgsc.ca/platform/bioinfo/software/abyss}\\
+AMOS  & 3.1.0 & Y & \href{http://amos.sourceforge.net}{http://amos.sourceforge.net} \\
+samtools &  0.1.18 & Y & \href{http://samtools.sourceforge.net/}{http://samtools.sourceforge.net} \\
+picard  & 1.56  & Y &\href{http://picard.sourceforge.net/}{http://picard.sourceforge.net} \\
+SIS  & NA & Y & \href{http://marte.ic.unicamp.br:8747/}{http://marte.ic.unicamp.br:8747/} \\
+Sspace & 1.2 & N & \href{http://www.baseclear.com/landingpages/basetools-a-wide-range-of-bioinformatics-solutions/sspacev12/}{http://www.baseclear.com} \\
+GapFiller & 1.10 & N & \href{http://www.baseclear.com/landingpages/basetools-a-wide-range-of-bioinformatics-solutions/gapfiller/}{http://www.baseclear.com} \\
+R & 2.15.2 & Y & \href{http://www.r-project.org}{http://www.r-project.org} \\
+Prokka & 1.5.2 & Y & \href{http://www.vicbioinformatics.com/software.prokka.shtml}{http://www.vicbioinformatics.com/software.prokka.shtml} \\
+Aragorn & 1.2.34c & Y & \href{http://mbio-serv2.mbioekol.lu.se/ARAGORN/}{http://mbio-serv2.mbioekol.lu.se/ARAGORN} \\
+Prodigal & 2.60 & Y & \href{http://prodigal.ornl.gov}{http://prodigal.ornl.gov} \\
+HMMER3 & 3.1 & Y & \href{http://hmmer.janelia.org}{http://hmmer.janelia.org} \\
+RNAmmer & 1.2 & N & \href{http://www.cbs.dtu.dk/cgi-bin/sw_request?rnammer}{http://www.cbs.dtu.dk} \\
+Infernal & 1.1rc2 & Y & \href{http://infernal.janelia.org}{http://infernal.janelia.org} \\
+Blast+ & 2.2.27 & Y & \href{http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web\&PAGE_TYPE=BlastDocs\&DOC_TYPE=Download}{http://blast.ncbi.nlm.nih.gov/Blast.cgi} \\
+BWA & 0.75a & Y & \href{http://bio-bwa.sourceforge.net}{http://bio-bwa.sourceforge.net} \\
+MUMmer & 3.22 & Y & \href{http://mummer.sourceforge.net/}{http://mummer.sourcegorge.net} \\
+tbl2asn & NA & Y & \href{ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_program/tbl2asn/}{ftp://ftp.ncbi.nih.gov} \\
+\end{tabular}
 \subsubsection{Perl Modules}
 
 BugBuilder also makes use of some non-core Perl modules which need to be installed. These are:
@@ -152,19 +151,22 @@ installed. BugBuilder uses these when executing commands, since it does not expe
 available on the path, permitting it's use in a cluster environmnet where a minimal environment if
 available. Some of the prerequisite packages do, however, expect certain executables to be found on
 the path. The \$PATH environmental variable is set by BugBuilder to include these directories based
-upon the values defined here.
+upon the values defined here. If Perl or Python modules required for the execution of any of the
+dependencies are installed in locations not searched by Perl or Python by default, the location of
+these can be included using the {\tt 'perl\_lib\_path} and {\tt 'python\_lib\_path'} attributes.
 
 \subsection{Assembler Configuration}
 
 Any assembler which meets some basic criteria can be integrated into the BugBuilder pipeline. The
-assemblers needs to be able to handle non-interleaved, paired fastq formatted sequence reads, and
-output contig sequences in a fasta format. Assemblers which output scaffold sequences are also
-supported, where the scaffolds need to be output in a fasta format containing one record per
-scaffold, with a stretch of 'N's separating  the contigs of the sequence. 
+assemblers needs to be able to handle non-interleaved, paired fastq formatted sequence reads or
+singel unpaired fastq files. Contig outputs are expected to be in  fasta format. Assemblers which
+output scaffold sequences are also supported, where the scaffolds need to be output in a fasta
+format containing one record per scaffold, with a stretch of 'N's separating  the contigs of the
+sequence. 
 
-Assemblers with differing input files requirements, or providing differently formatted
-outputs can be accomodated by writing a wrapper script to convert the inputs BugBuilder is able to
-provide to the required formats, and post-process the outputs to make the suitable for BugBuilders
+Assemblers with differing input files requirements, or providing differently formatted outputs can
+be accomodated by writing a wrapper script to convert the inputs BugBuilder is able to provide to
+the required formats, and post-process the outputs to make the suitable for BugBuilders
 requirements.
 
 \subsubsection{Adding an Assembler}
@@ -174,16 +176,19 @@ Integrating an assembler is simply a matter of providing an appropriate configur
 certain strings to allow the paths to directories/files etc. to be passed to the assembler. A full
 list of these is provided below. 
 
-The following attributes need to be defined for each assembler:
+The following attributes may be defined for each assembler:
 
 \begin{itemize}
 \item {\bf name}: The name this assembler is referred to as by BugBuilder. This is the value which
 needs to be specified by the {\tt assembler} command line argument to select this assembler. It is
 also used as the name of the subdirectory within the working directory for storing the assembler
 outputs.
-\item {\bf command}: The fully qualified command required to run the assembler. 
+\item {\bf command\_se}: The fully qualified command required to run the assembler with unpaired sequence reads. 
+\item {\bf command\_pe}: The fully qualified command required to run the assembler with paired sequence reads. 
 \item {\bf contig\_output}: The fully qualified name of the fasta file containing contig sequences
 generated by the assembler.
+\item {\bf default\_args}: Additional arguments to pass to the assembler be default. Runtime
+selection of assembler arguments can be made using the {\tt --assembler\_args} command-line argument
 \item {\bf scaffold\_output}: (Optional) - the fully qualified name of the fasta file containing
 scaffold sequences generated by the assembler.
 \item {\bf create\_dir}: A flag to indicate whether BugBuilder should create a subdirectory for the
@@ -196,6 +201,8 @@ may need to be run via a wrapper script.
 \item {\bf priority}: Defines the order that BugBuilder will use assemblers. Set this to '1' for
 the assembler you wish to be the default.
 \end{itemize}
+
+It is necessary for all these attributes to be defined, with the exception of the 'command\_se' and 'command\_pe' attributes, where either one or both of these can be specified depending upon the assemblers capabilities i.e if it requires paired reads or not.
 
 \subsubsection{Runtime Template Replacements}
 
@@ -246,8 +253,9 @@ contigs derived from this scaffolder. Valid entries are 'paired-ends' (for scaff
 mate-pair evidence to associate contigs) or 'align-genus' for alignment based approaches (assuming
 the reference organism is of the same genus). The default value inserted in AGP files is
 'paired-ends', since this is the method typically employed by assemblers which have scaffolding
-capabilities.
-\end{itemize}
+capabilities. This attribute is also used to validate the choice of scaffolder, such that a
+'paired-ends' scaffolder requires paired fastq files to be provided, while a scaffolder with
+linkage\_evidence of 'align\_genus' requires a reference genome to be provided.  \end{itemize}
 
 \subsubsection{Runtime Template Replacements}
 
@@ -270,10 +278,11 @@ command line argument
 
 \subsection{Pipeline Inputs}
 
-BugBuilder currently requires fastq format sequences from a mate-pair library, provided in a
-non-interleaved format (i.e. in two separate fastq files, rather than one fastq file with
-alternating read1/read2 sequences). Additionally, provision of a fasta format reference genome from
-a closely related organism can help in improving the large-scale structure of the assembly.
+BugBuilder currently requires fastq format sequences from either a fragment (single read) or
+mate-pair library. Paired reads should be rovided in a non-interleaved format (i.e. in two separate
+fastq files, rather than one fastq file with alternating read1/read2 sequences). Additionally,
+provision of a fasta format reference genome from a closely related organism can help in improving
+the large-scale structure of the assembly.
 
 \subsection{Pipeline Outputs}
 
@@ -284,7 +293,7 @@ for viewing using the Artemis Comparison Tool (\url{www.sanger.ac.uk/resources/s
 
 \subsection{Workflow}
 
-\begin{figure}[h]
+\begin{figure}[ht]
 \fbox{\includegraphics[width=0.9\textwidth]{workflow}}
 \caption{BugBuilder Workflow}
 \label{fig:BugBuilderWorkflow}
@@ -338,6 +347,21 @@ If no assembler is specified on the command line, the first of those displayed o
 available assemblers will be used. The order of this list is controlled by the 'priority' attribute
 in the 'assemblers' section of the configuration file.
 
+Assemblers typically accept a number of arguments allowing the assembly process to be controlled
+i.e. by controlling the kmer size used for constructing a graph, or the number of parallel threads
+to be used. Any arguments to be passed to the assembler by default can be defined using the
+{\tt 'default\_args'} configuration parameter. These can be overridden at runtime using the {\tt
+--assembler\_args} argument, which will be appended to the command line. If multiple arguments are
+being passed, ensure they are surrounding in quotes: 
+
+\begin{verbatim}
+BugBuilder --fastq1 read1.fastq --fastq2 read2.fastq  \
+    --reference myreference.fasta --assembler abyss --assembler_args 'k=31'
+\end{verbatim}
+
+Care should be taken with the formatting of additional arguments being passed to an assembler since
+incorrect values will probably cause the assembler to fail.
+
 \subsection{Multiple Assemblers}
 
 Assemblers typically break contig sequences where sequences become repetitive and difficult to
@@ -354,6 +378,17 @@ specified twice:
 \begin{verbatim}
 BugBuilder --fastq1 read1.fastq --fastq2 read2.fastq  \
     --reference myreference.fasta --assembler abyss --assembler spades
+\end{verbatim}
+
+If additional arguments are to be passed to assemblers when multiple assemblers are being used,
+specify the {\tt --assembly\_args} twice, with the arguments passed in the same order as the
+assemblers as requested i.e. the arguments specified by the first use of the {\tt --assembly\_args}
+argument will be passed to the first assembler requested.
+
+\begin{verbatim}
+BugBuilder --fastq1 read1.fastq --fastq2 read2.fastq  \
+    --reference myreference.fasta --assembler abyss --assembler_args "k=61" \
+    --assembler spades --assembler_args "-t 8"
 \end{verbatim}
 
 \subsection{Scaffolding}
@@ -379,7 +414,7 @@ repetitive regions within the genome. An alternative approach which has had cons
 with microbial genomes is to align the generated contigs against the genome sequence of a closely
 related organism, and use this evidence to order and orientate the contigs.
 
-\begin{figure}[h]
+\begin{figure}[ht]
 \fbox{\includegraphics[width=0.9\textwidth]{paired_read_scaffolding}}
 \caption{Scaffolding contigs with read-pair information}
 \label{fig:ReadPairScaffolding}
@@ -392,6 +427,10 @@ scaffolds, and with microbial genomes typically does not outperform the scaffold
 build into assembly tools. SIS is a tool which utilises MUMmer to align the contigs against a
 reference genome, and utilises this information to determine the order and organisation of contig
 sequences.  
+
+The scaffolder configuration allows for a set of default arguments to be passed to the scaffolder
+command line, defined using the '{\tt default\_args}' attribute. This can be overridden at runtime
+by passing arguments with the command-line argument '{\tt --scaffolder\_args}'. 
 
 The advantage of read-pair based scaffolding algorithms is that they are not biased by external
 factors, whereas alignment against a reference genome may result in an assembly which is
@@ -457,7 +496,7 @@ compares with the reference.
 \subsection{Outputs}
 
 The resulting output files are copied into a directory within the directory from which BugBuilder
-was launched. If genus/species/strain names have been provided, the directory will be named {\tt
+was launched. If genus/species/strain names have been provided, the directory will be named \\ {\tt
 BugBuilder\_genus\_species\_strain}. If the full contents of the working directory are required, for
 example for debugging purposes, specifiying the {\tt --keepall} command-line argument will copy the
 full contents of the directory rather than just the final output files.

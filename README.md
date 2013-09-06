@@ -26,9 +26,10 @@ BugBuilder requires a considerable number of packagegs to be available, many of 
 
 BugBuilder also requires some non-core Perl modules to be available.
 
+* BioPerl (1.6.901)
 * File::Copy::Recursive
 * Parallel::ForkManager
-* BioPerl (1.6.901)
+* YAML::XS
 
 Installation
 ============
