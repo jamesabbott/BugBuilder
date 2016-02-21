@@ -4,8 +4,8 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_sis $
 # $Author: jamesa $
-# $Revision: 43 $
-# $Date: 2013-08-29 15:28:38 +0100 (Thu, 29 Aug 2013) $
+# $Revision: 128 $
+# $Date: 2015-11-08 20:34:21 +0000 (Sun, 08 Nov 2015) $
 #
 # Wrapper for SIS to permit use via BugBuilder scaffolding stages
 #
@@ -33,9 +33,13 @@ are reprocessed into a multifasta file of 'N' gapped scaffold sequences.
 
 =over 4
 
-=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+=item B<tmpdir>: BugBuilder working directory
+
+=item B<scaff_dir>: Directory within tmpdir for scaffolding these sequences...
 
 =item B<reference>: Fasta formatted reference genome for aligning contigs against
+
+=item B<contigs>: Fasta formatted file of contig sequences to scaffold
 
 =back
 
@@ -69,16 +73,19 @@ use Getopt::Long;
 use Pod::Usage;
 use Carp qw(croak cluck);
 use Bio::SeqIO;
+use File::Basename;
 
 {
 
     my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
 
-    my ( $help, $man, $reference, $tmpdir );
+    my ( $help, $man, $reference, $contigs, $tmpdir, $scaff_dir );
 
     my $result = GetOptions(
                              'reference:s' => \$reference,
+                             'contigs:s'   => \$contigs,
                              'tmpdir=s'    => \$tmpdir,
+                             'scaff_dir=s' => \$scaff_dir,
                              'help'        => \$help,
                              'man'         => \$man,
                            );
@@ -86,29 +93,33 @@ use Bio::SeqIO;
     croak "\nUnknown argument: @ARGV" if "@ARGV";
     pod2usage( verbose => 2 ) if ($man);
     pod2usage( verbose => 1 )
-      if ( $help || !$tmpdir || !$reference );
+      if ( $help || !$tmpdir || !$scaff_dir || !$reference || !$contigs );
+
+    chdir "$scaff_dir" or croak "Could not chdir to $scaff_dir:$!";
 
     croak "\n$reference does not exist" unless ( -e $reference );
-
-    chdir "$tmpdir/SIS" or croak "Could not chdir to $tmpdir/SIS:$!";
+    croak "\n$contigs does not exist"   unless ( -e $contigs );
 
     my $cmd = $config->{'mummer_dir'}
-      . "/nucmer $tmpdir/$reference $tmpdir/contigs.fasta -p $tmpdir/SIS/sis > $tmpdir/SIS/nucmer.log 2>&1";
+      . "/nucmer $reference $contigs -p $scaff_dir/sis 2>&1 > $scaff_dir/nucmer.log";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
     $cmd = $config->{'mummer_dir'}
-      . "/delta-filter -1 $tmpdir/SIS/sis.delta 2>$tmpdir/SIS/delta-filter.log > $tmpdir/SIS/sis.filter";
+      . "/delta-filter -1 $scaff_dir/sis.delta 2>$scaff_dir/delta-filter.log > $scaff_dir/sis.filter";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
     $cmd = $config->{'mummer_dir'}
-      . "/show-coords $tmpdir/SIS/sis.filter 2>$tmpdir/SIS/show-coords.log > $tmpdir/SIS/sis.coords";
+      . "/show-coords $scaff_dir/sis.filter 2>$scaff_dir/show-coords.log > $scaff_dir/sis.coords";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
 
-    $cmd = $config->{'sis_dir'} . "sis.py $tmpdir/SIS/sis.coords > $tmpdir/SIS/sis.sis";
+    $cmd = $config->{'sis_dir'} . "sis.py $scaff_dir/sis.coords > $scaff_dir/sis.sis";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
-    $cmd = $config->{'sis_dir'} . "multifasta.py $tmpdir/SIS/sis.sis $tmpdir/contigs.fasta";
+    $cmd = $config->{'sis_dir'} . "multifasta.py $scaff_dir/sis.sis $contigs";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
+
+	my $ref_id = basename($scaff_dir);
+	#$ref_id=~s/SIS_//;
 
     # Build a multifasta file of N-gapped scaffolds
-    opendir SIS, "$tmpdir/SIS" or die "Error opening $tmpdir/SIS: $!";
+    opendir SIS, "$scaff_dir" or die "Error opening $scaff_dir: $!";
     my @scaffolds = grep /.fna$/, readdir SIS;
     close SIS;
 
@@ -116,7 +127,7 @@ use Bio::SeqIO;
 
     foreach my $scaffold (@scaffolds) {
 
-        my $contig_count = `grep -c '>' $tmpdir/SIS/$scaffold`;
+        my $contig_count = `grep -c '>' $scaff_dir/$scaffold`;
         chomp $contig_count;
 
         if ( $contig_count > 1 ) {
@@ -128,16 +139,14 @@ use Bio::SeqIO;
     }
 
     my $multiFastaIO = Bio::SeqIO->new( -format => 'fasta',
-                                        -file   => ">$tmpdir/SIS/scaffolds.fasta" );
+                                        -file   => ">$scaff_dir/scaffolds.fasta" );
 
-    my $unplacedIO = Bio::SeqIO->new( -format => 'fasta',
-                                      -file   => ">$tmpdir/SIS/unplaced_contigs.fasta" );
     my $i = 0;
     foreach my $scaffold (@multi) {
 
         my $io = Bio::SeqIO->new( -format => 'fasta',
-                                  -file   => "$tmpdir/SIS/$scaffold" );
-        my $scaffold = Bio::Seq->new( -display_id => "scaffold_" . ++$i );
+                                  -file   => "$scaff_dir/$scaffold" );
+        my $scaffold = Bio::Seq->new( -display_id => "scaffold_${ref_id}" . ++$i );
         while ( my $seq = $io->next_seq ) {
             if ( $scaffold->length() > 0 ) {
                 $scaffold->seq( $scaffold->seq() . 'N' x 100 . $seq->seq() );
@@ -149,15 +158,25 @@ use Bio::SeqIO;
         $multiFastaIO->write_seq($scaffold);
     }
 
-    # create a multifasta file of unplaced contigs
+    #  append singleton scaffolds to scaffolds.fasta
     foreach my $scaffold (@singletons) {
         my $io = Bio::SeqIO->new( -format => 'fasta',
-                                  -file   => "$tmpdir/SIS/$scaffold" );
+                                  -file   => "$scaff_dir/$scaffold" );
         my $seq = $io->next_seq();
-        $unplacedIO->write_seq($seq);
+        $seq->display_id( "scaffold_${ref_id}" . ++$i );
+        $multiFastaIO->write_seq($seq);
 
     }
+	
+    open SIS, "$scaff_dir/sis.sis" or croak "Error opening $scaff_dir/sis.sis: $!";
+    open CONTIG_IDS, ">$scaff_dir/SIS.contig_ids" or croak "Error opening $scaff_dir/sis.contig_ids: $!";
+    while ( my $line = <SIS> ) {
+        next if ( $line =~ /^>|^$/ );
+        my $contig = ( split( / /, $line ) )[0];
+	print CONTIG_IDS $contig, "\n";
+    }
+    close SIS;
+	close CONTIG_IDS;
 
-    exit(0);
 
 }

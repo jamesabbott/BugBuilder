@@ -1,0 +1,322 @@
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/etc/package_info.yaml $
+# $Author: jamesa $
+# $Revision: 157 $
+# $Date: 2016-02-14 09:39:22 +0000 (Sun, 14 Feb 2016) $
+#
+# YAML format package information used for configure.pl script
+#
+# The following attributes can be defined for each package:
+# 
+# name:  the name used to identify the package to BugBuilder. Also used
+# for path placement in config where it replaces __uc($name)_DIR__
+#
+# binary:  name of executable to check for
+#
+# version_test: Command to find determine the installed version of the 
+# package
+#	
+# version: Versions of package we know is ok. 
+#
+# tarball: Name of archive file of redistributable software hosted on
+# BugBuilder site
+#
+# build_cmd: Shell command to build the software
+#
+# bin_dir: relative path within BugBuilder tree 'packages' directory
+# which should be added to path config
+# 
+######################################################################
+---
+packages:  
+    - name: 'fastqc'
+      download_url: 'http://www.bioinformatics.babraham.ac.uk/projects/fastqc/'
+      tarball: 'fastqc_v0.11.4.zip'
+      version: 
+        - 'v0.11.4'
+      build_cmd: 'mv -v __BBDIR__/../src/fastqc/FastQC __PACKDIR__/fastqc 2>&1; chmod +x __PACKDIR__/fastqc/fastqc'
+      bin_dir: 'fastqc' 
+      binary: 'fastqc'
+      key: 'fastqc_dir'
+      version_test: "__BINARY__ -v |awk '{print $2}'"
+    - name:  'sickle'
+      binary: 'sickle'
+      version_test: "__BINARY__ --version 2>&1|grep version|cut -d' ' -f 3"
+      version: 
+        - '1.210'
+        - '1.200'
+      tarball: 'sickle_1.2.zip'
+      build_cmd: 'cd __BBDIR__/../src/sickle/sickle-master; make 2>&1; mv -v sickle __PACKDIR__/bin/sickle 2>&1'
+      bin_dir: '/bin'
+      key: 'sickle_dir'
+      download_url: 'https://github.com/najoshi/sickle'
+    - name: 'seqtk'
+      download_url: 'https://github.com/lh3/seqtk/archive/seqtk-1.0.tar.gz'
+      tarball: 'seqtk-1.0.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/seqtk/seqtk-1.0; make 2>&1; mv -v seqtk __PACKDIR__/bin/seqtk 2>&1'
+      key: 'seqtk_dir'
+      bin_dir: '/bin'
+      binary: 'seqtk'
+      version_test: "__BINARY__ 2>&1|grep Version|awk '{print $2}'"
+      version:
+        - '1.0-r31'
+    - name: 'samtools'
+      binary:  'samtools'
+      version_test: "__BINARY__ 2>&1|grep Version|cut -d' ' -f 2"
+      version: 
+        - '0.1.18'
+        - '0.1.19'
+        - '1.2'
+      tarball: 'samtools-1.2.tar.bz2'
+      build_cmd: 'cd __BBDIR__/../src/samtools/samtools-1.2/; make -j 2 2>&1; mv -v samtools __PACKDIR__/bin/ 2>&1'
+      download_url: 'http://samtools.sourceforge.net/'
+      bin_dir: '/bin' 
+      key: 'samtools_dir'
+    - name: 'picard' 
+      tarball: 'picard-tools-1.140.zip'
+      build_cmd: 'mkdir -v __PACKDIR__/lib/picard; mv -v __BBDIR__/../src/picard/picard-tools-1.140/* __PACKDIR__/lib/picard'
+      key: 'picard_dir'
+      download_url: 'http://samtools.sourceforge.net/'
+      lib_dir: 'lib/picard'
+      lib: 'picard.jar'
+      version_test: "java -jar __BINARY__/picard.jar ViewSam --version 2>&1|cut -d '(' -f 1"
+      version: 
+        - 1.140
+    - name: 'sis'
+      binary: 'sis.py'
+      version: 
+        - 'nov 15, 2011'
+      version_test: "grep 'release date' __BINARY__ 2>&1|awk -F: '{print $2}'|sed 's/^ //'"
+      tarball: "sis.zip"
+      build_cmd: 'mv -v __BBDIR__/../src/sis/sis/sis.py __PACKDIR__/bin/sis.py 2>&1'
+      bin_dir: '/bin'
+      key: 'sis_dir'
+      download_url: 'http://marte.ic.unicamp.br:8747/'
+    - name: 'mauve'
+      lib_dir: 'mauve'
+      lib: 'Mauve.jar'
+      bin_dir: 'linux-x64'
+      build_cmd: 'mv -v __BBDIR__/../src/mauve/mauve_snapshot_2015-02-13/ __PACKDIR__/mauve'
+      tarball: 'mauve_linux_snapshot_2015-02-13.tar.gz'
+      download_url: 'http://darlinglab.org/mauve/'
+      key: 'mauve_dir'
+    - name: 'R'
+      binary: 'R'
+      version: 
+        - '3.2.2'
+        - '2.15.3'
+      version_test: "__BINARY__ --version 2>&1|grep 'R version'|awk '{print $3}'"
+      tarball: "R-3.2.2.tar.gz"
+      build_cmd: 'cd __BBDIR__/../src/R/R-3.2.2/; ./configure --prefix=__PACKDIR__/.. --with-x=no 2>&1; make -j 2 2>&1; make install 2>&1'
+      bin_dir: 'R/bin'
+      key: 'R_dir'
+      download_url: 'http://www.r-project.org'
+    - name: 'barrnap'
+      version:
+        -  '0.6'
+      tarball: "barrnap-0.6.tar.gz"
+      build_cmd: 'mv -v __BBDIR__/../src/barrnap/barrnap-0.6 __PACKDIR__/barrnap 2>&1'
+      bin_dir: '/barrnap/bin'
+      binary: 'barrnap'
+      version_test: "__BINARY__  2>&1|grep rapid|awk '{print $2}'"
+      key: "barrnap_dir"
+      download_url: "http://www.vicbioinformatics.com/software.barrnap.shtml"
+    - name: 'prokka'
+      binary: 'prokka'
+      version: 
+        - '1.11'
+        - '1.5.2'
+      version_test: "__BINARY__ --version 2>&1|awk '{print $2}'"
+      tarball: "prokka-1.11.tar.gz"
+      build_cmd: 'mv -v __BBDIR__/../src/prokka/prokka-1.11 __PACKDIR__/prokka 2>&1; __PACKDIR__/prokka/bin/prokka --setupdb 2>&1'
+      bin_dir: '/prokka/bin'
+      key: 'prokka_dir'
+      download_url: 'http://www.vicbioinformatics.com/software.prokka.shtml'
+    - name: 'aragorn'
+      binary: 'aragorn'
+      version: 
+        - 'v1.2.36'
+        - 'v1.2.34'
+      version_test: "__BINARY__ -h 2>&1|grep 'ARAGORN v'|awk '{print $2}'"
+      tarball: 'aragorn1.2.36.tgz'
+      build_cmd: 'cd __BBDIR__/../src/aragorn/aragorn1.2.36; gcc -O3 -ffast-math -finline-functions -o aragorn aragorn1.2.36.c 2>&1; mv -v aragorn __PACKDIR__/bin 2>&1'
+      bin_dir: '/bin'
+      key: 'aragorn_dir'
+      download_url: 'http://mbio-serv2.mbioekol.lu.se/ARAGORN/'
+    - name: 'prodigal'
+      binary: 'prodigal'
+      version: 
+        - 'v2.60'
+      version_test: "__BINARY__ 2>&1|grep PRODIGAL|awk '{print $2}'"
+      tarball: 'prodigal.v2_60.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/prodigal/prodigal.v2_60; make -j 2 2>&1; mv -v prodigal __PACKDIR__/bin/prodigal 2>&1'
+      bin_dir: '/bin'
+      key: 'prodigal_dir'
+      download_url: 'http://prodigal.ornl.gov'
+    - name: 'hmmer3'
+      binary: 'hmmsearch'
+      version: 
+       - '3.1b1'
+       - '3.0'
+      version_test: "__BINARY__  -h 2>&1|grep HMMER|awk '{print $3}'"
+      tarball: 'hmmer-3.1b1.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/hmmer3/hmmer-3.1b1/; ./configure --prefix=__PACKDIR__ 2>&1;  make -j 2 2>&1; make install 2>&1'
+      bin_dir: '/bin'
+      key: 'hmmer3_dir'
+      download_url: 'http://hmmer.janelia.org'
+    - name: 'rnammer'
+      binary: 'rnammer'
+      version: 
+        - '1.2'
+      version_test: "__BINARY__ -v 2>&1|awk '{print $3}'|sed 's/,//'"
+      build_cmd: 'cd __BBDIR__/../src/rnammer; cd ..; mv -v rnammer __PACKDIR__/ 2>&1;'
+      tarball: 'rnammer-1.2.src.tar.Z'
+      bin_dir: '/rnammer'
+      key: 'rnammer_dir'
+    - name: 'mummer'
+      version_test: "__BINARY__ --version 2>&1|grep version|awk '{print $5}'"
+      version:
+        - 3.1
+      tarball: 'MUMmer3.23.tar.gz'
+      build_cmd: 'mv -v __BBDIR__/../src/mummer/MUMmer3.23 __BBDIR__/../packages/mummer; cd __BBDIR__/../packages/mummer; make -j 2 2>&1; cd ..;'
+      bin_dir: '/mummer'
+      binary: 'nucmer'
+      key: 'mummer_dir'
+    - name: 'infernal'
+      binary: 'cmscan'
+      version: 
+        - '1.1rc4'
+      version_test: "__BINARY__  -h 2>&1|grep INFERNAL|awk '{print $3}'"
+      tarball: 'infernal-1.1rc4.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/infernal/infernal-1.1rc4; ./configure --prefix=__PACKDIR__/ 2>&1; make -j 2 2>&1; make install 2>&1'
+      bin_dir: '/bin'
+      key: 'infernal_dir'
+      download_url: 'http://infernal.janelia.org'
+    - name: 'blast'
+      binary: 'blastn'
+      version: 
+        - '2.2.31+'
+        - '2.2.28+'
+        - '2.2.27+'
+      version_test: "__BINARY__  -version 2>&1|grep blastn:|awk '{print $2}'"
+      #tarball: 'ncbi-blast-2.2.28+-src.tar.gz'
+      tarball: 'ncbi-blast-2.2.31+-x64-linux.tar.gz'
+      build_cmd: 'mv -v __BBDIR__/../src/blast/ncbi-blast-2.2.31+ __PACKDIR__/ncbi-blast' 
+      bin_dir: '/ncbi-blast/bin'
+      key: 'blast_dir'
+      download_url: 'http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download'
+    - name: 'bwa'
+      binary: 'bwa'
+      version: 
+        - '0.7.5a-r405'
+      version_test: "__BINARY__  2>&1|grep Version|awk '{print $2'}"
+      tarball: 'bwa-0.7.5a.tar.bz2'
+      build_cmd: 'cd __BBDIR__/../src/bwa/bwa-0.7.5a; make 2>&1; mv -v bwa __PACKDIR__/bin/ 2>&1;'
+      bin_dir: '/bin'
+      key: 'bwa_dir'
+      download_url: 'http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download'
+    - name: 'tbl2asn'
+      binary: 'tbl2asn'
+      version: 
+        - '22.3'
+        - '24.3'
+      version_test: "__BINARY__  --help 2>&1|grep tbl2asn|awk '{print $2}'"
+      tarball: 'linux64.tbl2asn.gz'
+      build_cmd: 'mv -f __BBDIR__/../src/tbl2asn __PACKDIR__/bin/ 2>&1; chmod +x __PACKDIR__/bin/tbl2asn'
+      bin_dir: '/bin'
+      key: 'tbl2asn_dir'
+      download_url: 'ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_program/tbl2asn/'
+    - name: 'abyss'
+      binary: 'ABYSS'
+      version:
+        - '1.9.0'
+        - '1.3.4'
+      version_test: "__BINARY__ --version|grep ABYSS|awk '{print $3}'"
+      tarball: 'abyss-1.9.0.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/abyss/abyss-1.9.0; wget http://downloads.sourceforge.net/project/boost/boost/1.56.0/boost_1_56_0.tar.bz2; tar jxf boost_1_56_0.tar.bz2; ./configure --without-sparsehash --prefix=__PACKDIR__ 2>&1; make 2>&1; make install 2>&1;'
+      bin_dir: '/bin'
+      key: 'abyss_dir'
+      download_url: 'http://www.bcgsc.ca/platform/bioinfo/software/abyss'
+    - name: 'spades'
+      binary: 'spades.py'
+      version: 
+        - 'v.3.6.1'
+        - 'v.3.6.0'
+        - 'v.2.3.0'
+      version_test: "__BINARY__ 2>&1|grep 'SPAdes genome assembler'|awk '{print $4}'"
+      tarball: 'SPAdes-3.6.1-Linux.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/spades/SPAdes-3.6.1-Linux; mv -v bin/* __PACKDIR__/bin/ 2>&1; mv -v share/* __PACKDIR__/share/ 2>&1'
+      bin_dir: '/bin'
+      key: 'spades_dir'
+      download_url: 'http://bioinf.spbau.ru/spades'
+    - name: 'celera'
+      download_url: 'http://sourceforge.net/projects/wgs-assembler/files/wgs-assembler/wgs-8.3/wgs-8.3rc2.tar.bz2'
+      tarball: 'wgs-8.3rc2.tar.bz2'
+      version:
+        -  '8.3rc2'
+      build_cmd: 'cd __BBDIR__/../src/celera/wgs-8.3rc2/kmer; make 2>&1; make install 2>&1; cd ../src ; make 2>&1; cd ../..; mv -v __BBDIR__/../src/celera/wgs-8.3rc2 __PACKDIR__/celera 2>&1'
+      bin_dir: '/celera/Linux-amd64/bin/'
+      binary: 'runCA'
+      version_test: "__BINARY__ -version 2>&1|grep version|awk '{print $3}'|sort -u"
+      key: 'celera_dir'
+    - name: 'gapfiller'
+      binary: 'GapFiller.pl'
+      version: 
+        - '[GapFiller_v1-10]'
+      version_test: "__BINARY__  2>&1 |grep Usage|awk '{print $3}'"
+      download_url: "http://www.baseclear.com/genomics/bioinformatics/basetools/gapfiller"
+      tarball: '39GapFiller_v1-10_linux-x86_64.tar.gz'
+      build_cmd: 'dos2unix __BBDIR__/../src/gapfiller/GapFiller_v1-10_linux-x86_64/GapFiller.pl 2>&1; mv -v __BBDIR__/../src/gapfiller/GapFiller_v1-10_linux-x86_64 __PACKDIR__/gapfiller 2>&1;'
+      bin_dir: '/gapfiller'
+      key: 'gapfiller_dir'
+    - name:  'sspace'
+      binary: 'SSPACE_v3-0.pl'
+      version: 
+        - '[SSPACE_Standard_v3.0_linux]'
+      version_test: "__BINARY__  2>&1|grep Usage|awk '{print $3}'"
+      key: 'sspace_dir'
+      download_url: 'http://www.baseclear.com/landingpages/basetools-a-wide-range-of-bioinformatics-solutions/sspacev12/'
+      binary: 'SSPACE_Standard_v3.0.pl'
+      tarball: '41SSPACE-STANDARD-3.0_linux-x86_64.tar.gz'
+      build_cmd: 'mv -v __BBDIR__/../src/sspace/SSPACE-STANDARD-3.0_linux-x86_64 __PACKDIR__/sspace 2>&1'
+      bin_dir: '/sspace'
+    - name: 'asn2gb'
+      download_url: 'ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_platform/linux64/asn2gb.linux64.gz'
+      bin_dir: '/bin'
+      binary: 'asn2gb'
+      tarball: 'linux64.asn2gb.gz'
+      key: 'asn2gb_dir'
+      build_cmd: 'mv -v __BBDIR__/../src/asn2gb __PACKDIR__/bin/ 2>&1; chmod +x __PACKDIR__/bin/asn2gb'
+      version_test: "__BINARY__ --help|grep ^asn2gb|awk '{print $2}'"
+      version:
+        - 16.6
+    - name: 'amos' 
+      binary: 'toAmos'
+      tarball: 'amos-3.1.0.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/amos/amos-3.1.0/; patch --verbose src/Align/find-tandem.cc ../../find-tandem.patch; ./configure --with-qmake-qt4=/usr/lib64/qt4/bin/qmake --prefix=/__PACKDIR__/amos; make -j 2 2>&1 ; make install 2>&1;'
+      bin_dir: '/amos/bin'
+      key: 'amos_dir'
+      download_url: 'http://amos.sourceforge.net'
+    - name: 'batik' 
+      lib_dir: 'lib/batik'
+      lib: 'batik-1.8.jar'
+      tarball: 'batik-bin-1.8.tar.gz'
+      download_url: "https://xmlgraphics.apache.org/batik/download.html"
+      build_cmd: 'mv -v __BBDIR__/../src/batik/batik-1.8 __PACKDIR__/lib/batik'
+      key: 'batik_dir'
+      version:
+        - 1.8
+      version_test: "ls __BBDIR__/packages/lib/batik|grep batik-[0-9].[0-9].jar|sed 's/batik-//'|sed 's/.jar//'"
+    - name: 'circleator'
+      download_url: 'http://jonathancrabtree.github.io/Circleator/'
+      tarball: '1.0.0rc4.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/circleator/Circleator-1.0.0rc4; perl ./Build.PL --install_base __PACKDIR__/; ./Build; ./Build install;'
+      bin_dir: 'circleator'
+      binary: 'circleator'
+      key: 'circleator_dir'
+      version_test: "__BBDIR__/bin/circleator -v 2>&1|awk '{print  $3}'"
+      version:
+        - 1.0.0rc4
+
+

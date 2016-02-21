@@ -1,0 +1,134 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_mauve $
+# $Author: jamesa $
+# $Revision: 134 $
+# $Date: 2015-11-11 20:43:23 +0000 (Wed, 11 Nov 2015) $
+#
+# Wrapper for mauve to permit use via BugBuilder scaffolding stages
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_mauve
+
+=head1 SYNOPSIS
+
+run_mauve --tmpdir BugBuilder_working_directory --scaff_dir scaffold_directory --run 1 --reference reference_genome.fasta --contigs contigs.fasta[--help]
+
+=head1 DESCRIPTION
+
+Wrapper for mauve contig mover to permit use withing BugBuilder's scaffolding configuration.
+Although not a true scaffolder, mauve can produce very good ordering of contigs vs a reference
+which we can then convert to N-gapped scaffolds
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory
+
+=item B<scaff_dir>: Directory within tmpdir for scaffolding these sequences...
+
+=item B<reference>: Fasta formatted reference genome for aligning contigs against
+
+=item B<contigs>: Fasta formatted file of contig sequences to scaffold
+
+=item B<run>: Run numbner
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use File::Basename;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $reference, $contigs, $run, $tmpdir, $scaff_dir );
+
+    my $result = GetOptions(
+                             'reference:s' => \$reference,
+                             'contigs:s'   => \$contigs,
+                             'tmpdir=s'    => \$tmpdir,
+                             'scaff_dir=s' => \$scaff_dir,
+			     'run=s'         => \$run,
+                             'help'        => \$help,
+                             'man'         => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$scaff_dir || !$reference || !$contigs );
+
+    chdir "$tmpdir" or croak "Could not chdir to $tmpdir:$!";
+
+    croak "\n$reference does not exist" unless ( -e "$reference" );
+    croak "\n$contigs does not exist"   unless ( -e "$contigs" );
+    my $mauve_dir = $config->{'mauve_dir'};
+    my $cmd =
+"java -Djava.awt.headless=true -Xmx500m -cp $mauve_dir/Mauve.jar org.gel.mauve.contigs.ContigOrderer -output $scaff_dir -ref $reference -draft $contigs 2>&1 >mauve.log";
+	print "scaff_dir = $scaff_dir\n";
+    system($cmd) == 0 or croak "Error running $cmd: $!";
+
+    opendir MAUVE, $scaff_dir or croak "Couldn't open $scaff_dir: $!";
+    my @alignments = sort grep /alignment/, readdir(MAUVE);
+    close MAUVE;
+    chdir $scaff_dir or croak "Error chdiring to $scaff_dir: $!";
+    symlink $alignments[$#alignments], "last_alignment" or croak "Error symlinking $alignments[$#alignments]";
+    chdir $tmpdir or croak "Error chdiring to $tmpdir: $!";
+
+	my $scaff_count=1;
+	$contigs = basename($contigs);	
+    my $inIO = Bio::SeqIO->new( -format => 'fasta', -file => "$scaff_dir/last_alignment/$contigs.fas" );
+    my $scaffold = new Bio::Seq( -display_id => 'scaffold_' . $scaff_count++);
+    while ( my $contig = $inIO->next_seq() ) {
+        if ( $scaffold->length() ) {
+            $scaffold->seq( $scaffold->seq() . 'N' x 100 );
+        }
+	if ($scaffold->seq()) {
+        	$scaffold->seq( $scaffold->seq() . $contig->seq() );
+	} else {
+		$scaffold->seq($contig->seq());
+	}
+    }
+
+    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">$scaff_dir/scaffolds.fasta" );
+    $outIO->write_seq($scaffold);
+
+}

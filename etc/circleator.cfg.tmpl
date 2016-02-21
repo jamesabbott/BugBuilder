@@ -1,0 +1,26 @@
+######################################################################
+# 
+# Configuration file for circleator 
+# 
+# Displays  GC contents, contigs/scaffolds, tRNAs, genes
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/etc/circleator.cfg.tmpl $
+# $Author: jamesa $
+# $Revision: 121 $
+# $Date: 2015-11-01 23:45:50 +0000 (Sun, 01 Nov 2015) $
+#
+######################################################################
+
+%GC0-100 no-labels=1
+coords label-interval=1000000,innerf=same
+contigs c1
+new ag rectangle innerf=same,outerf=same,feat-type=assembly_gap,color1=white,color2=white,stroke-width=2.5,opacity=0.7
+medium-label innerf=same+0.01,label-function=primary_id,feat-track=c1,text-color=white,packer=none,font-weight=bold
+small-cgap
+tiny-cgap
+tRNAs trnas heightf=0.01,color1=none,color2=none
+genes-fwd
+genes-rev
+medium-cgap
+large-label heightf=0.2,outerf=same,feat-track=trnas,style=signpost,label-function=product,draw-link=1,color1=#d0d0f0,color2=#7070f0,link-color=#7070f0,stroke-width=1.5,font-width-frac=3.5
+small-cgap

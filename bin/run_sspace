@@ -2,10 +2,10 @@
 
 ######################################################################
 #
-# $HeadURL$
-# $Author$
-# $Revision$
-# $Date$
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_sspace $
+# $Author: jamesa $
+# $Revision: 128 $
+# $Date: 2015-11-08 20:34:21 +0000 (Sun, 08 Nov 2015) $
 #
 # Wrapper for sspace to permit use via BugBuilder scaffolding stages
 #
@@ -72,12 +72,14 @@ use Bio::SeqIO;
 
     my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
 
-    my ( $help, $man, $tmpdir, $insert_size, $insert_sd );
+    my ( $help, $man, $tmpdir, $scaff_dir, $contigs, $insert_size, $insert_sd );
 
     my $result = GetOptions(
                              'tmpdir=s'      => \$tmpdir,
                              'insert_size=s' => \$insert_size,
                              'insert_sd=s'   => \$insert_sd,
+			     'scaff_dir=s'   => \$scaff_dir,
+	'contigs=s' => \$contigs,	
                              'help'          => \$help,
                              'man'           => \$man,
                            );
@@ -85,9 +87,9 @@ use Bio::SeqIO;
     croak "\nUnknown argument: @ARGV" if "@ARGV";
     pod2usage( verbose => 2 ) if ($man);
     pod2usage( verbose => 1 )
-      if ( $help || !$tmpdir || !$insert_size || !$insert_sd );
+      if ( $help || !$tmpdir || !$insert_size || !$insert_sd || !$scaff_dir );
 
-    chdir "$tmpdir/sspace" or croak "Could not chdir to $tmpdir/sspace:$!";
+    chdir $scaff_dir or croak "Could not chdir to $scaff_dir:$!";
 
     my $error = sprintf( "%.2f", $insert_sd / $insert_size );
 
@@ -95,7 +97,7 @@ use Bio::SeqIO;
     print LIB "lib1 $tmpdir/read1.fastq $tmpdir/read2.fastq $insert_size $error 0\n";
     close LIB;
 
-    my $cmd = $config->{'sspace_dir'} . "SSPACE_v1-0.pl -l library.txt -x 0 -b sspace -s $tmpdir/contigs.fasta";
+    my $cmd = $config->{'sspace_dir'} . "SSPACE_v1-0.pl -l library.txt -x 0 -b sspace -s $contigs";
     system($cmd) == 0 or croak "Error running $cmd: $!";
 
     my $inIO = Bio::SeqIO->new(-file=>"sspace.final.scaffolds.fasta", -format=>'fasta');
@@ -106,5 +108,6 @@ use Bio::SeqIO;
 	$scaff->display_id($scaffold_id);
 	$outIO->write_seq($scaff);
     }
+	symlink ("BugBuilder.scaffolds.fasta", "scaffolds.fasta") or croak "Error creating scaffolds.fasta symlink: $!";
 
 }

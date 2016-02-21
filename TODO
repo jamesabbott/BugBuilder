@@ -1,13 +1,17 @@
 FEATURES
-* Add interproscan to annotation stage
-* Add Amosvalidate singleton breakpoint results
-* Add Quast to validation
-* Output annotated ordered scaffolds.embl by merging contigs.fasta based on AGP
-* Try to join ends of scaffolds following splitting round origin - currently best we can do is two scaffolds since we can scaffold to one then split it, but GapFiller doesn't necessarily rejoin the ends
+* Reinstate variant calling when reference sequence provided 
+* Add Quast to validation??
+* SMB sharing from VM to ease data transfer
+* Add debain/ubuntu support to configure.pl
+* Add long-read scaffolding method i.e. PBjelly
+* Parallelise preprocessing stages where possible
+* Add parameter to assembler config to indicate if trimming is required, and carry out depending on status
+* Improve ori location finding using ori-finder2?
+* Build web-based interface
 
-BUGS
-* BUG: Occasional assemblies seem to randomly come out backwards..
+Documentaion:
 
-OTHER
-* Installation script...
-* Add demo/tests set from SRA
+Distribution
+* Remove non-redistributable components from VM
+* compact vdi file
+

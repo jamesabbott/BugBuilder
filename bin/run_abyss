@@ -1,0 +1,122 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_abyss $
+# $Author: jamesa $
+# $Revision: 154 $
+# $Date: 2016-02-09 16:35:28 +0000 (Tue, 09 Feb 2016) $
+#
+# Wrapper for ABySS assembler to permit use via BugBuilder assembly stage
+# Requiered due to need to set kmer size dependent upon read length 
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_celera
+
+=head1 SYNOPSIS
+
+run_abyss --tmpdir BugBuilder_working_directory --fastq1 read1.fastq --fastq2 read2.fastq --read_length nn
+ --assembler_args "args" [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for Celera WGS assembler. Celera requires inputs in it's own FRG format, hence we need to
+initially convert our fastq files, before running the assembler
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<fastq1>: Fastq file1
+
+=item B<fastq2>: Fastq file2
+
+=item B<read_length>: Mean read length for library
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $fastq1, $fastq2, $read_length, $assembler_args, $tmpdir );
+
+    my $result = GetOptions(
+                             'tmpdir=s'        => \$tmpdir,
+                             'fastq1=s'        => \$fastq1,
+                             'fastq2:s'        => \$fastq2,
+                             'read_length:s'   => \$read_length,
+			     'assembler_args:s' => \$assembler_args,
+                             'help'            => \$help,
+                             'man'             => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$fastq1 || !$fastq2 || !$read_length);
+
+    croak "\n$fastq1 does not exist" unless ( -e $fastq1 );
+    croak "\n$fastq2 does not exist" unless ( -e $fastq2 );
+
+    chdir "$tmpdir/abyss" or croak "Could not chdir to $tmpdir/abyss: $!";
+
+	if ($assembler_args && $assembler_args=~/k=(\d+)/) {
+		#check kmer size is appropraite for read length
+		my $kmer = $1;
+		croak "Requested $kmer kmer size is too large for $read_length reads...." if ($kmer > $read_length*.9);
+
+	} else {
+		my $kmer = int($read_length*.90);
+		$kmer=$kmer-1 if ($kmer%2==0); #force an odd kmer size....
+		if ($kmer>60) {$kmer=61};
+		$assembler_args .= " k=$kmer";
+	}
+
+
+    my $cmd = $config->{'abyss_dir'} . "/abyss-pe in='$fastq1  $fastq2' name=abyss $assembler_args";
+
+    print "running $cmd...\n";
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    exit(0);
+
+}

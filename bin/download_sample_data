@@ -1,0 +1,264 @@
+#!/bin/env perl
+
+################################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/download_sample_data $
+# $Author: jamesa $
+# $Revision: 160 $
+# $Date: 2016-02-15 15:20:30 +0000 (Mon, 15 Feb 2016) $
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+################################################################################
+
+=pod
+
+=head1 NAME  
+
+download_sample_data
+
+=head1 SYNOPSIS
+
+  download_sample_data [--dataset setname] [--all] [--dir /path/to/download] [--help] [--manual]
+
+=head1 DESCRIPTION
+
+  This script downloads example datasets for BugBuilder from public data
+  repositories. Downloaded data consists of reads from a single sequence
+  library and an appropriate reference genome. Downloaded data will be placed in
+  the 'examples' directory of the BugBuilder software installation if the user
+  running the script has appropriate permissions to write into this location,
+  otherwise will be written to a 'BugBuilder_examples' directory in the user's
+  home directory. Alternatively, the location to use for downloads can be
+  specified using the '--dir' argument
+
+  A summary of available datasets will be displayed when run without specifying
+  any arguments or with the --help text.
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<dataset>: Name of dataset to download
+
+=item B<all>: Download all example datasets
+
+=item B<dir>: Directory to write example data to 
+
+=item B<help>: Display help text and dataset list
+
+item B<manual>: Display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use Getopt::Long;
+use Pod::Usage;
+use YAML::XS qw(Load);
+use Carp qw(croak cluck);
+use URI::URL;
+use LWP::Simple;
+use FindBin;
+use File::Basename;
+use Term::ANSIColor qw(:constants);
+
+{
+    my $data = do { local $/; <DATA> };
+    my $datasets = Load($data);
+    my ( $sel_dataset, $all, $help, $man );
+    my $dir = "$FindBin::Bin/../examples";
+    my $result = GetOptions(
+                             'dataset:s' => \$sel_dataset,
+                             'all'       => \$all,
+                             'dir:s'     => \$dir,
+                             'help'      => \$help,
+                             'man'       => \$man,
+                           );
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1, message => \&show_datasets($datasets) ) if ( $help || ( !$all && !$sel_dataset ) );
+
+    if ( !-d $dir ) {
+        mkdir $dir or croak "Error creating $dir: $!";
+    }
+    elsif ( !-w $dir ) {
+        croak "No write permission on $dir. Please select another destination using the --dir argument\n";
+    }
+
+    my $d = $datasets->{'datasets'};
+  DATASET: foreach my $dataset ( keys %{$d} ) {
+        if ( ( $sel_dataset && $dataset eq $sel_dataset ) || $all ) {
+
+            print BOLD "\nDownloading $dataset example data...\n";
+
+            my $vals = $d->{$dataset}->[0];
+
+            my $ref_id = $vals->{'reference_id'};
+            my @fastq_urls = split( / /, $vals->{'read_urls'} );
+
+            mkdir "$dir/$dataset" or croak "Error creating $dir/$dataset: $!" if ( !-d "$dir/$dataset" );
+            chdir "$dir/$dataset" or croak "Error chdiring to $dir/$dataset: $!";
+
+            my @files;
+            foreach my $fastq (@fastq_urls) {
+                my ($file) = basename($fastq);
+                push @files, $file;
+
+                print RESET "\n$file...\n";
+
+                if ( !-e "$dir/$dataset/$file" ) {
+                    my $cmd = "curl -o $file $fastq";
+                    system($cmd) == 0 or croak "Error downloading $fastq: $!";
+                }
+                else {
+                    print "\n$file already downloaded...skipping...\n";
+                }
+            }
+
+            # Single ended libraries in multiple runs need merging...
+            if ( ( $vals->{'library'} && $vals->{'library'} eq 'single' ) && $#files > 0 ) {
+                print "\nMerging libraries...\n";
+                open MERGE, ">:gzip", "$dataset.fq.gz" or croak "Error opening $dataset.fq.gz: $!";
+                foreach my $file (@files) {
+                    if ( $file =~ /.gz$/ ) {
+                        open FASTQ, "<:gzip", $file or croak "Error opening $file; $!";
+                    }
+                    else {
+                        open FASTQ, $file or croak "Error opening $file; $!";
+                    }
+                    print MERGE while (<FASTQ>);
+                    close FASTQ;
+                    unlink $file or croak "Error removing $file: $!";
+                }
+
+            }
+
+            print "\n$ref_id reference genome...\n";
+            my $ref_url = "http://www.ebi.ac.uk/ena/data/view/$ref_id&display=fasta";
+            getstore( "$ref_url", "$ref_id.fasta" );
+
+        }
+    }
+}
+
+######################################################################
+#
+# show_datasets
+#
+# reports on sample datasets configured for download
+#
+# required params: $ (parsed YAML configuration data)
+#
+# returns: void
+#
+######################################################################
+
+sub show_datasets {
+    my $data = shift;
+    print "Available example datasets:\n\n";
+  DATASET: foreach my $dataset ( sort keys( %{ $data->{'datasets'} } ) ) {
+        my $vals = $data->{'datasets'}->{$dataset}->[0];
+        print BOLD "\n$dataset:";
+        print RESET "\t", $vals->{'description'}, "\n";
+        print "\tRequired space: ", $vals->{'size'}, "\n";
+    }
+    print "\n";
+    return ();
+}
+
+__DATA__
+datasets:
+  GA_E_coli_K12_MG1655:
+    - description: "Illumina Genome Analyzer paired end sequencing; Escherichia coli str. K-12 substr. MG1655 genomic paired-end library (ENA project PRJNA30551; Read length 37 bp; Insert size 486bp; Coverage 112X)"
+      reference_id: LN832404.1
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR001/SRR001666/SRR001666_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR001/SRR001666/SRR001666_2.fastq.gz
+      size: 533 Mb
+  GAII_S_aureus:
+    - description: "Illumina Genome Analyzer II paired-end sequencing: Staphylococcus aureus EMRSA-16 genomic library (ENA project PRJNA157545; Read length 37 bp; Insert size 230 bp; Coverage 73X)"
+      reference_id: CP000253
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR453/SRR453031/SRR453031_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR453/SRR453031/SRR453031_2.fastq.gz
+      size: 125 Mb
+  HiSeq_E_coli_K12:
+    - description: "Illumina HiSeq 2000 paired end sequencing: Escherichia coli str. K-12 substr. MG1655 genomic library (ENA project PRJEB4687; Read length 102 bp; Insert size 240 bp; Coverage 810X)"
+      reference_id: LN832404.1
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR348/ERR348769/ERR348769_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR348/ERR348769/ERR348769_2.fastq.gz
+      size: 3.2 Gb
+  MiSeq_S_aureus:
+    - description: "Illumina MiSeq paired-end sequencing: Staphylococcus aureus NCTC 8325 genomic library (ENA project PRJNA244946; Read length 158 bp; Insert size 221 bp; Coverage 73X)"
+      reference_id: CP000253
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR146/007/SRR1460677/SRR1460677_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR146/007/SRR1460677/SRR1460677_2.fastq.gz
+      size: 145 Mb
+  MiSeq_E_coli_K12:
+    - description: "Illumina MiSeq paired end sequencing: Escherichia coli K-12 genomic library (ENA project PRJEB8559; Read length 128 bp; Insert size 4914 bp; Coverage 49X)"
+      reference_id: LN832404.1
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR760/ERR760547/ERR760547_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR760/ERR760547/ERR760547_2.fastq.gz
+      size: 153 Mb
+  454FLX_E_coli_K12:
+    - description: "454 FLX single-ended sequencing: Eschiricia coli K-12  substr. MG1655 genomic library (ENA project PRJNA40075; Read length 228 +/ 49 bp; coverage 29X)"
+      reference_id: U00096.3
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029317/SRR029317.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029318/SRR029318.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029319/SRR029319.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029320/SRR029320.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029321/SRR029321.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029322/SRR029322.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029323/SRR029323.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR029/SRR029324/SRR029324.fastq.gz
+      library: single
+      size: 112 Mb
+  PacBio_E_coli_K12:
+    - description: "PacBio RSII sequencing with P5 polymerase and C3 chemistry: Escherichia coli K-12 substr. MG1655 (ENA project PRJNA237120; Read length 1954+/-2621 bp; Coverage ~139X)"
+      reference_id: U00096.3 
+      read_urls:	
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_27.fastq.gz	
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_25.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_2.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_23.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_21.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_19.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_17.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_15.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_13.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_11.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_9.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_7.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_5.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_3.fastq.gz
+      library: single
+      size: 668 Mb
+  MinION_E_coli_K12:
+    - description: "Oxford Nanopore MinION sequencing: Eschericihia coli K-12 (ENA Project ERP007108; Read length 3860 +/- 3270 bp; Coverage ~53x)"
+      reference_id: CP001396
+      read_urls:
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR637/ERR637419/ERR637419.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR637/ERR637419/ERR637419_1.fastq.gz
+        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR637/ERR637419/ERR637419_2.fastq.gz
+      library: single
+      size: 442 Mb

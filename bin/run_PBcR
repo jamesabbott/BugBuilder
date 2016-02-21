@@ -1,0 +1,128 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_PBcR $
+# $Author: jamesa $
+# $Revision: 153 $
+# $Date: 2016-02-02 11:15:14 +0000 (Tue, 02 Feb 2016) $
+#
+# Wrapper for running PBcR from wgs-assembler on high coverage, long
+# read data
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_PBcR
+
+=head1 SYNOPSIS
+
+run_PBcR --tmpdir BugBuilder_working_directory --fastq long.fastq 
+ [--genome_size genomesize] --platform [Sequencing platform] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for Celera WGS assembler. Celera requires inputs in it's own FRG format, hence we need to
+initially convert our fastq files, before running the assembler
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<fastq>: Fastq file
+
+=item B<genome_size>: Estimated size of genome
+
+=item B<platform>: Sequencing platform i.e. PacBio, MinION
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $fastq, $platform, $tmpdir, $genome_size );
+
+    my $result = GetOptions(
+                             'tmpdir=s'      => \$tmpdir,
+                             'fastq=s'       => \$fastq,
+                             'genome_size:s' => \$genome_size,
+                             'platform:s'    => \$platform,
+                             'help'          => \$help,
+                             'man'           => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$fastq );
+
+    croak "\n$fastq does not exist" unless ( -e $fastq );
+    $platform = lc($platform);
+    croak "Invalid platform: $platform" unless ( $platform eq 'pacbio' || $platform eq 'minion' );
+
+    chdir "$tmpdir/PBcR" or croak "Could not chdir to $tmpdir/PBcR: $!";
+    print "fastq = $fastq\n";
+    my $target = readlink($fastq);
+    print "target = $target\n";
+    if ( $target =~ /.gz$/ ) {
+        my $cmd = "gunzip $tmpdir/$target";
+        system($cmd) == 0 or croak "Error running $cmd: $!";
+        $target =~ s/\.gz//;
+        unlink("$fastq") or croak "Error removing $tmpdir/$fastq: $!";
+        symlink( "$tmpdir/$target", "$fastq" ) or croak "Error symlinking $fastq:$!";
+    }
+    symlink( "$tmpdir/$target", "$tmpdir/PBcR/$target" ) or croak "Error symlinkning $target: $!";
+
+    my $cmd = $config->{'celera_dir'} . "/PBcR -libraryname BugBuilder -fastq $fastq ";
+    $cmd .= " -genomeSize $genome_size" if ( $genome_size ne "__GENOME_SIZE__" );
+    if ( $platform eq "pacbio" ) {
+        $cmd .= " -s $FindBin::Bin/../etc/PBcR_PacBio.spec";
+    }
+    elsif ( $platform eq "minion" ) {
+        $cmd .= " -s $FindBin::Bin/../etc/PBcR_MinION.spec -length 500 -partitions 200";
+    }
+
+    print "running $cmd...\n";
+
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    exit(0);
+
+}

@@ -1,0 +1,146 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_celera $
+# $Author: jamesa $
+# $Revision: 151 $
+# $Date: 2015-11-28 17:54:55 +0000 (Sat, 28 Nov 2015) $
+#
+# Wrapper for Celera assembler to permit use via BugBuilder assembly stage
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_celera
+
+=head1 SYNOPSIS
+
+run_celera --tmpdir BugBuilder_working_directory --fastq1 read1.fastq --fastq2 read2.fastq
+--category [assembler_category] [--insert_size insertsize] [--insert-stddev stddev] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for Celera WGS assembler. Celera requires inputs in it's own FRG format, hence we need to
+initially convert our fastq files, before running the assembler
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<fastq1>: Fastq file1
+
+=item B<fastq2>: Fastq file2
+
+=item B<category>: Category of assembly i.e. long_illumina, 454_IonTorrent
+
+=item B<insert_size>: Library insert size
+
+=item B<insert_stddev>: Standard deviation of library insert size
+
+=item B<genome_size>: Estimated size of genome
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $fastq1, $fastq2, $insert_size, $insert_stddev, $category, $encoding, $tmpdir, $genome_size );
+
+    my $result = GetOptions(
+                             'tmpdir=s'        => \$tmpdir,
+                             'fastq1=s'        => \$fastq1,
+                             'fastq2:s'        => \$fastq2,
+                             'category=s'      => \$category,
+			     'encoding=s'      => \$encoding,
+                             'insert_size:s'   => \$insert_size,
+                             'insert_stddev:s' => \$insert_stddev,
+			     'genome_size:s'   => \$genome_size,
+                             'help'            => \$help,
+                             'man'             => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$fastq1 || !$category);
+
+    croak "\n$fastq1 does not exist" unless ( -e $fastq1 );
+    croak "Invalid plaftorm: $category"
+      unless (    $category eq '454_IonTorrent'
+               || $category eq 'long_illumina');
+
+    chdir "$tmpdir/celera" or croak "Could not chdir to $tmpdir/celera: $!";
+
+    my $platform;
+    if ($category eq '454_IonTorrent') {
+	$platform = '454';	
+    } elsif ($category eq 'long_illumina') {
+	$platform = 'illumina';
+    }
+
+    my $cmd = $config->{'celera_dir'} . "/fastqToCA -technology $platform -type $encoding -libraryname BugBuilder";
+    $cmd .= " -insertsize $insert_size $insert_stddev" if ( $insert_size && $insert_stddev );
+
+    print "running $cmd...\n";
+    if ( $fastq1 && $fastq2 ) {
+        $cmd .= " -mates $fastq1,$fastq2";
+    }
+    else {
+        $cmd .= " -reads $fastq1";
+    }
+    $cmd .= ">BugBuilder.frg";
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    $cmd = $config->{'celera_dir'}
+      . "/runCA -d $tmpdir/celera/output -p BugBuilder";
+    if ($category eq '454_IonTorrent') {
+	$cmd .= " -s $FindBin::Bin/../etc/celera_454_IonTorrent.spec"
+    } elsif ($category eq 'long_illumina') {
+	$cmd .= " -s $FindBin::Bin/../etc/celera_long_illumina.spec"
+    }
+    $cmd .= " utgGenomeSize=$genome_size" if ($genome_size ne "__GENOME_SIZE__");
+    $cmd .= " $tmpdir/celera/BugBuilder.frg";
+
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    exit(0);
+
+}
