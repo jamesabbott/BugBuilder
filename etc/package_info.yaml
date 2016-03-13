@@ -2,8 +2,8 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/etc/package_info.yaml $
 # $Author: jamesa $
-# $Revision: 157 $
-# $Date: 2016-02-14 09:39:22 +0000 (Sun, 14 Feb 2016) $
+# $Revision: 177 $
+# $Date: 2016-03-10 10:25:18 +0000 (Thu, 10 Mar 2016) $
 #
 # YAML format package information used for configure.pl script
 #
@@ -89,7 +89,7 @@ packages:
         - 'nov 15, 2011'
       version_test: "grep 'release date' __BINARY__ 2>&1|awk -F: '{print $2}'|sed 's/^ //'"
       tarball: "sis.zip"
-      build_cmd: 'mv -v __BBDIR__/../src/sis/sis/sis.py __PACKDIR__/bin/sis.py 2>&1'
+      build_cmd: 'mv -v __BBDIR__/../src/sis/sis/sis.py __PACKDIR__/bin/sis.py 2>&1; mv -v __BBDIR__/../src/sis/sis/multifasta.py __PACKDIR__/bin/multifasta.py 2>&1'
       bin_dir: '/bin'
       key: 'sis_dir'
       download_url: 'http://marte.ic.unicamp.br:8747/'
@@ -276,7 +276,7 @@ packages:
         - '[SSPACE_Standard_v3.0_linux]'
       version_test: "__BINARY__  2>&1|grep Usage|awk '{print $3}'"
       key: 'sspace_dir'
-      download_url: 'http://www.baseclear.com/landingpages/basetools-a-wide-range-of-bioinformatics-solutions/sspacev12/'
+      download_url: 'http://www.baseclear.com/genomics/bioinformatics/basetools/SSPACE'
       binary: 'SSPACE_Standard_v3.0.pl'
       tarball: '41SSPACE-STANDARD-3.0_linux-x86_64.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/sspace/SSPACE-STANDARD-3.0_linux-x86_64 __PACKDIR__/sspace 2>&1'

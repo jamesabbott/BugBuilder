@@ -6,8 +6,13 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/configure.pl $
 # $Author: jamesa $
-# $Revision: 164 $
-# $Date: 2016-02-20 15:23:39 +0000 (Sat, 20 Feb 2016) $
+# $Revision: 179 $
+# $Date: 2016-03-10 10:32:17 +0000 (Thu, 10 Mar 2016) $
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
 #
 ######################################################################
 
@@ -62,10 +67,10 @@ use local::lib "$FindBin::Bin/..";
 BEGIN {
     require CPAN;
     foreach my $module (
-             qw(Test::More YAML::XS File::Copy::Recursive  Perl4::CoreLibs
-             Parallel::ForkManager Archive::Extract Archive::Tar Archive::Zip 
-			 Digest::MD5 File::Tee SVG Text::CSV Log::Log4perl JSON Time::Piece
-			 CGI HTML::Template Clone)
+                         qw(Test::More YAML::XS File::Copy::Recursive  Perl4::CoreLibs
+                         Parallel::ForkManager Archive::Extract Archive::Tar Archive::Zip
+                         Digest::MD5 File::Tee SVG Text::CSV Log::Log4perl JSON Time::Piece
+                         CGI HTML::Template Clone)
                        )
     {
         eval "require $module";
@@ -74,29 +79,31 @@ BEGIN {
             print "\nInstalling this module requires write access to your perl installation,
 		or the perl 'local::lib' module to be available\n";
 
-            print "\nInstall this module within the BugBuilder installation [yN] ?\n";
+           # print "\nInstall this module within the BugBuilder installation [yN] ?\n";
 
-            ReadMode 'cbreak';
-            my $key = ReadKey(0);
-            ReadMode 'normal';
-            if ( $key =~ /y/i ) {
+           # ReadMode 'cbreak';
+           # my $key = ReadKey(0);
+           # ReadMode 'normal';
+            #if ( $key =~ /y/i ) {
+
                 #CPAN::install("$module");
-		my $ret = CPAN->install("$module");
-		print "ret = $ret\n";
+                my $ret = CPAN->install("$module");
+                print "ret = $ret\n";
 
-                eval { require "$module" };
-                if ( $@ ne "" ) {
-                   print "\nInstall returned $@....\n";
-                    print "$module may not be installed correctly.\n"
-                      . "Please verify your perl configuration then rerun configure.pl\n\n";
-                #      exit(1);
-                }
+            #    eval { require "$module" };
+            #    if ( $@ ne "" ) {
+            #        print "\nInstall returned $@....\n";
+            #        print "$module may not be installed correctly.\n"
+            #          . "Please verify your perl configuration then rerun configure.pl\n\n";
+#
+#                    #      exit(1);
+#                }
                 print "\n";
-            }
-            else {
-                print "\n\nCan not proceed without $module module...\n";
-                exit;
-            }
+            #}
+#           else {
+#                print "\n\nCan not proceed without $module module...\n";
+#                exit;
+#            }
         }
     }
 }
@@ -130,10 +137,10 @@ use HTML::Template;
 
     my $bin_dir = $FindBin::Bin;
     my $etc_dir = "$FindBin::Bin/../etc";
-    my $bb_dir = "$FindBin::Bin/../";
+    my $bb_dir  = "$FindBin::Bin/../";
 
     $Archive::Extract::PREFER_BIN = 1;
-    $ENV{'PATH'}                          = $FindBin::Bin . ":" . $ENV{'PATH'};
+    $ENV{'PATH'} = $FindBin::Bin . ":" . $ENV{'PATH'};
 
     my $packages = LoadFile("$FindBin::Bin/../etc/package_info.yaml");
 
@@ -153,12 +160,17 @@ use HTML::Template;
         install_prerequisites($packages);
     }
 
+    my $sam2afg_url = "https://sourceforge.net/p/amos/code/ci/master/tree/src/Converters/sam2afg.pl";
+    print "Downloading sam2afg from AMOS sourceforge repository...\n";
+    my $cmd = "curl -o $bin_dir/samtoafg $sam2afg_url";
+    system($cmd)==0 or die "Error downloading sam2afg: $!";
+
     my $tmp_dir = $term->readline("Enter path to working directory [/tmp]");
     $tmp_dir = "/tmp/" unless ($tmp_dir);
 
-    my $found_java= which('java');
-    my $java = $term->readline("Enter path to java [Found $found_java]");
-    $java = $found_java if ($java eq "");
+    my $found_java = which('java');
+    my $java       = $term->readline("Enter path to java [Found $found_java]");
+    $java = $found_java if ( $java eq "" );
 
     my $path_config;
 
@@ -180,23 +192,25 @@ use HTML::Template;
                 $inst_location =~ s/[\*\@ ]*$//;    #readline can add some additional decoration
             }
             if ( $inst_location eq "" ) {
-                print RED,  "\n\nWARNING: ", RESET, "$binary installation not found...\n";
+                print RED, "\n\nWARNING: ", RESET, "$binary installation not found...\n";
             }
         }
         if ($inst_location) {
             my $good_version = check_version( $package, $inst_location );
-            print "\t",$package->{'name'} . " path configured as $inst_location...\n";
+            print "\t", $package->{'name'} . " path configured as $inst_location...\n";
             $path_config .= $name . "_dir: $inst_location/\n";
 
             # A patch is required to sam2afg, which has been accepted by both the AMOS and ABySS
             # projects, but has yet to make it into a 'real' release. Until then we'll have to
             # apply it here...
-            if ( $name eq 'abyss' ) {
-                copy( "$inst_location/abyss-samtoafg", "$FindBin::Bin/samtoafg" ) or die "Error copying samtoafg: $!";
-                my $cmd = "patch $FindBin::Bin/samtoafg $FindBin::Bin/../src/sam2afg.patch";
-                system($cmd) == 0 or die "Error patching sam2afg: $!";
-                $path_config .= "sam2afg: $FindBin::Bin/samtoafg\n";
-            }
+            # 	JCA 220216 - this requires abyss to be installed, which is optional. Instead we'll try retreiving
+            # 	from directly from the amos git repo... somewhere up there ^
+            #if ( $name eq 'abyss' ) {
+            #    copy( "$inst_location/abyss-samtoafg", "$FindBin::Bin/samtoafg" ) or die "Error copying samtoafg: $!";
+            #    my $cmd = "patch $FindBin::Bin/samtoafg $FindBin::Bin/../src/sam2afg.patch";
+            #    system($cmd) == 0 or die "Error patching sam2afg: $!";
+            #    $path_config .= "sam2afg: $FindBin::Bin/samtoafg\n";
+            #}
         }
     }
 
@@ -204,11 +218,11 @@ use HTML::Template;
     $perl_lib =~ s/bin$/lib\/perl5/;
     $path_config .= "\nperl_lib_path: $perl_lib";
 
-	my $fh=\*DATA;
-	my $config = HTML::Template->new_filehandle($fh);
-    $config->param('TMP_DIR', $tmp_dir);
-	$config->param('JAVA', $java);
-	$config->param('INSTALL_PATHS', $path_config);
+    my $fh     = \*DATA;
+    my $config = HTML::Template->new_filehandle($fh);
+    $config->param( 'TMP_DIR',       $tmp_dir );
+    $config->param( 'JAVA',          $java );
+    $config->param( 'INSTALL_PATHS', $path_config );
 
     open CONFIG, ">$FindBin::Bin/../etc/BugBuilder.yaml"
       or die "Could not open $FindBin::Bin/../etc/BugBuilder.test.yaml: $!";
@@ -324,14 +338,15 @@ sub install_bioperl {
                   . "Please verify your perl configuration then rerun configure.pl\n\n";
                 exit(1);
             }
-			#Bio::FeatureIO now seems to be packaged separately
+
+            #Bio::FeatureIO now seems to be packaged separately
             CPAN::install("C/CJ/CJFIELDS/Bio-FeatureIO-1.6.905.tar.gz");
             eval { require Bio::FeatureIO };
             if ( $@ ne "" ) {
                 print "\nBioperl could not be installed.\n"
                   . "Please verify your perl configuration then rerun configure.pl\n\n";
                 exit(1);
-		}
+            }
             print "\n";
         }
     }
@@ -363,15 +378,15 @@ sub install_prerequisites {
     if ( !-d "$bb_dir/install_logs" ) {
         mkdir "$bb_dir/install_logs" or die "Error creating $bb_dir/install_logs...: $!";
     }
-	if (!-d "$pack_dir") {
-		mkdir "$pack_dir" or die "Error creating $pack_dir: $!";
-	}
-	if (!-d "$pack_dir/bin") {
-		mkdir "$pack_dir/bin" or die "Error creating $pack_dir/bin: $!";
-	}
-	if (!-d "$pack_dir/lib") {
-		mkdir "$pack_dir/lib" or die "Error creating $pack_dir/lib: $!";
-	}
+    if ( !-d "$pack_dir" ) {
+        mkdir "$pack_dir" or die "Error creating $pack_dir: $!";
+    }
+    if ( !-d "$pack_dir/bin" ) {
+        mkdir "$pack_dir/bin" or die "Error creating $pack_dir/bin: $!";
+    }
+    if ( !-d "$pack_dir/lib" ) {
+        mkdir "$pack_dir/lib" or die "Error creating $pack_dir/lib: $!";
+    }
 
   PACKAGE: foreach my $package ( @{ $packages->{'packages'} } ) {
 
@@ -380,11 +395,11 @@ sub install_prerequisites {
         my $build_cmd    = $package->{'build_cmd'};
         my $download_url = $package->{'download_url'};
         my $pack_bin_dir = $package->{'bin_dir'};
-	my $pack_lib_dir = $package->{'lib_dir'};
+        my $pack_lib_dir = $package->{'lib_dir'};
         my $installed;
 
-        if ($pack_bin_dir||$pack_lib_dir) {
-            add_inst_to_path("$pack_dir/$pack_bin_dir") if ($pack_bin_dir && $pack_bin_dir ne "");
+        if ( $pack_bin_dir || $pack_lib_dir ) {
+            add_inst_to_path("$pack_dir/$pack_bin_dir") if ( $pack_bin_dir && $pack_bin_dir ne "" );
             $installed = find_package($package);
         }
 
@@ -400,12 +415,12 @@ sub install_prerequisites {
             print LOG "\n\nbuild_cmd = $build_cmd\n\n" if ($build_cmd);
 
             if ( $tarball && not -e "$FindBin::Bin/../src/$tarball" ) {
-                print YELLOW, "The $name software was not found in $FindBin::Bin/../src\n", RESET;
-		print YELLOW, "\nIf you wish to use this package within BugBuilder, please download \n", RESET;
-		print YELLOW, "if from  $download_url  and copy the installation file ($tarball) into \n", RESET;
-                print YELLOW, " $FindBin::Bin/../src/\n", RESET;
-                print YELLOW, "\nOnce the software distribution is in place, press 'Y' to install it\n", RESET;
-                print YELLOW, "or 'N' to skip installation of $name\n\n",RESET;
+                print YELLOW, "The $name software was not found in $FindBin::Bin/../src\n",                RESET;
+                print YELLOW, "\nIf you wish to use this package within BugBuilder, please download \n",   RESET;
+                print YELLOW, "if from  $download_url  and copy the installation file ($tarball) into \n", RESET;
+                print YELLOW, " $FindBin::Bin/../src/\n",                                                  RESET;
+                print YELLOW, "\nOnce the software distribution is in place, press 'Y' to install it\n",   RESET;
+                print YELLOW, "or 'N' to skip installation of $name\n\n",                                  RESET;
 
                 ReadMode 'cbreak';
                 my $key = ReadKey(0);
@@ -446,7 +461,9 @@ sub install_prerequisites {
 
                 $installed = find_package($package);
                 unless ($installed) {
-	print RED,"\n$name does not seem to have been installed correctly. Please check log file for details...\n", RESET;
+                    print RED,
+                      "\n$name does not seem to have been installed correctly. Please check log file for details...\n",
+                      RESET;
                 }
             }
             else {
@@ -482,7 +499,7 @@ sub find_package {
     print "\nLooking for $name installation...";
 
     if ( defined($binary) ) {
-	
+
         $location = which($binary);
         if ($location) {
             print GREEN, "\n\t$binary found", RESET, " ($location)...\n";
@@ -490,20 +507,22 @@ sub find_package {
         else {
             print "not found...\n";
         }
-    } elsif (defined($lib)) {
-		my $lib_path = (File::Find::Rule->file()->name($lib)->in("$FindBin::Bin/.."))[0];
-		if ($lib_path) {
-		$location = (fileparse($lib_path))[1];
-		print GREEN, "\n\t$lib found", RESET, "($location)...\n";
-		}
-	}
+    }
+    elsif ( defined($lib) ) {
+        my $lib_path = ( File::Find::Rule->file()->name($lib)->in("$FindBin::Bin/..") )[0];
+        if ($lib_path) {
+            $location = ( fileparse($lib_path) )[1];
+            print GREEN, "\n\t$lib found", RESET, "($location)...\n";
+        }
+    }
     my $path;
     ($location) ? ( $path = dirname($location) ) : ( $path = "" );
-	if ($lib) {
-		return($location);
-	} else {
-    return ($path);
-	}
+    if ($lib) {
+        return ($location);
+    }
+    else {
+        return ($path);
+    }
 }
 
 ######################################################################
@@ -530,11 +549,11 @@ sub check_version {
 
     if ($known_version) {
         $version_test =~ s/__BINARY__/$location/;
-	$version_test =~ s/__BBDIR__/$FindBin::Bin\/../;
+        $version_test =~ s/__BBDIR__/$FindBin::Bin\/../;
         my $ret = `$version_test`;
         if ($ret) {
             chomp($ret);
-            print "\tfound version $ret...";# unless ( $name eq 'tbl2asn' );
+            print "\tfound version $ret...";    # unless ( $name eq 'tbl2asn' );
             foreach my $version (@$known_version) {
                 if ( $ret eq $version ) {
                     print "ok\n";
@@ -555,7 +574,7 @@ sub check_version {
                 else {
                     print YELLOW, "\n\nWARNING: ", RESET;
                     print "Your $name installation reports itself as $ret,"
-                      . " whereas BugBuilder has been tested against @$known_version.\n",RESET;
+                      . " whereas BugBuilder has been tested against @$known_version.\n", RESET;
                 }
             }
         }
@@ -684,18 +703,19 @@ assemblers:
      downsample_reads: 0
 
 scaffolders:
+   - name: SIS
+     linkage_evidence: align_genus
+     command: __BUGBUILDER_BIN__/run_sis --reference __REFERENCE__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
+     scaffold_output: scaffolds.fasta
+     unscaffolded_output: unplaced_contigs.fasta
+     create_dir: 1
+     priority: 2
    - name: mauve
      linkage_evidence: align_genus
      command: __BUGBUILDER_BIN__/run_mauve --reference __REFERENCE__ --run __RUN__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
      create_dir: 1
      priority: 1
      scaffold_output: scaffolds.fasta
-   - name: SIS
-     linkage_evidence: align_genus
-     command: __BUGBUILDER_BIN__/run_sis --reference __REFERENCE__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
-     scaffold_output: scaffolds.fasta
-     create_dir: 1
-     priority: 2
    - name: sspace
      linkage_evidence: paired-ends
      command: __BUGBUILDER_BIN__/run_sspace --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__ --contigs __CONTIGS__ --insert_size __INSSIZE__ --insert_sd __INSSD__ 

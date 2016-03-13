@@ -4,10 +4,14 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_sis $
 # $Author: jamesa $
-# $Revision: 128 $
-# $Date: 2015-11-08 20:34:21 +0000 (Sun, 08 Nov 2015) $
+# $Revision: 179 $
+# $Date: 2016-03-10 10:32:17 +0000 (Thu, 10 Mar 2016) $
 #
 # Wrapper for SIS to permit use via BugBuilder scaffolding stages
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
 #
 ######################################################################
 
@@ -100,8 +104,7 @@ use File::Basename;
     croak "\n$reference does not exist" unless ( -e $reference );
     croak "\n$contigs does not exist"   unless ( -e $contigs );
 
-    my $cmd = $config->{'mummer_dir'}
-      . "/nucmer $reference $contigs -p $scaff_dir/sis 2>&1 > $scaff_dir/nucmer.log";
+    my $cmd = $config->{'mummer_dir'} . "/nucmer $reference $contigs -p $scaff_dir/sis 2>&1 > $scaff_dir/nucmer.log";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
     $cmd = $config->{'mummer_dir'}
       . "/delta-filter -1 $scaff_dir/sis.delta 2>$scaff_dir/delta-filter.log > $scaff_dir/sis.filter";
@@ -115,8 +118,9 @@ use File::Basename;
     $cmd = $config->{'sis_dir'} . "multifasta.py $scaff_dir/sis.sis $contigs";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
 
-	my $ref_id = basename($scaff_dir);
-	#$ref_id=~s/SIS_//;
+    my $ref_id = basename($scaff_dir);
+
+    #$ref_id=~s/SIS_//;
 
     # Build a multifasta file of N-gapped scaffolds
     opendir SIS, "$scaff_dir" or die "Error opening $scaff_dir: $!";
@@ -167,16 +171,15 @@ use File::Basename;
         $multiFastaIO->write_seq($seq);
 
     }
-	
-    open SIS, "$scaff_dir/sis.sis" or croak "Error opening $scaff_dir/sis.sis: $!";
-    open CONTIG_IDS, ">$scaff_dir/SIS.contig_ids" or croak "Error opening $scaff_dir/sis.contig_ids: $!";
-    while ( my $line = <SIS> ) {
+
+    open SIS_OUTPUT, "$scaff_dir/sis.sis"         or croak "Error opening $scaff_dir/sis.sis: $!";
+    open CONTIG_IDS, ">$scaff_dir/sis.contig_ids" or croak "Error opening $scaff_dir/sis.contig_ids: $!";
+    while ( my $line = <SIS_OUTPUT> ) {
         next if ( $line =~ /^>|^$/ );
         my $contig = ( split( / /, $line ) )[0];
-	print CONTIG_IDS $contig, "\n";
+        print CONTIG_IDS $contig, "\n";
     }
-    close SIS;
-	close CONTIG_IDS;
-
+    close SIS_OUTPUT;
+    close CONTIG_IDS;
 
 }

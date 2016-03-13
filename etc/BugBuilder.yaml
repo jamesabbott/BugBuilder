@@ -1,98 +1,170 @@
 ######################################################################
 #
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/etc/BugBuilder.yaml $
-# $Author: jamesa $
-# $Revision: 68 $
-# $Date: 2013-09-04 13:19:54 +0100 (Wed, 04 Sep 2013) $
-#
 # BugBuilder configuration in YAML format
 #
-######################################################################
-
 # This file defines the BugBuilder configuration. See the BugBuilder 
 # User Guide for details of the dependencies which need to be installed.
+#
+######################################################################
 ---
 # tmp_dir specifies the location on the machine where working directories will be created
-tmp_dir: /scratch/BugBuilder/
-# Location where fastqident is installed
-fastqident_dir: /usr/local/fastqident/
-# Location where Sickle is installed
-sickle_dir: /usr/local/sickle/current/
-# Location where AbySS is installed
-abyss_dir: /usr/local/abyss/current/
-# Location where AMOS is installed
-amos_dir: /usr/local/amos/current/
-# Location where samtools is installed
-samtools_dir: /usr/local/samtools/current/
-# Location where picard is installed
-picard_dir: /usr/local/picard/current/
-# Location where SIS is installed
-sis_dir: /usr/local/SIS/current/
-# Location where SSPACE is installed
-sspace_dir: /usr/local/sspace/current/
-# Location where GapFiller is installed
-gapfiller_dir: /usr/local/GapFiller/current/
-# Location where R is iQCtalled
-R_dir: /usr/local/R/current/
-# Location where PROKKA is installed
-prokka_dir: /usr/local/prokka/prokka-1.5.2/
-# Location where Aragorn is installed
-aragorn_dir: /usr/local/aragorn/1.2.34.c/
-# Location where prodigal is installed
-prodigal_dir: /usr/local/prodigal/2.60/
-# Location where hmmer 3 is installed
-hmmer3_dir: /usr/local/hmmer/hmmer-3.0
-# Location where RNAmmer is installed
-rnammer_dir: /usr/local/RNAmmer/1.2
-# Location where MUMmer is installed
-mummer_dir: /usr/local/MUMmer/current/
-# Location where Infernal is installed
-infernal_dir: /usr/local/infernal/1.1rc2/
-# Location where Blast+ is installed
-blast_dir: /usr/local/ncbi_blast/2.2.22+/
-# Location where BWA is installed
-bwa_dir: /usr/local/bwa/current/
-# Location where ncbi_utils are installed
-ncbi_utils_dir: /usr/local/ncbi_utils/current/
-# Location where tbl2asn is installed
-tbl2asn_dir: /usr/local/ncbi_utils/tbl2asn/current/
+tmp_dir: /scratch/BugBuilder
+# java specifies the java binary
+java: /usr/bin/java
 
-#Set the python_path and perl_path attributes to enable 
-# Perl and Python modules installed in locations  to be found...
-#python_lib_path: 
-#perl_lib_path:
+fastqc_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/fastqc/
+sickle_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+seqtk_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+samtools_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+picard_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/../packages/lib/picard//
+sis_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+mauve_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/../packages/mauve//
+R_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/
+barrnap_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/barrnap/bin/
+prokka_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/prokka/bin/
+aragorn_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+prodigal_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+hmmer3_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+rnammer_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/rnammer/
+mummer_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/mummer/
+infernal_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+blast_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/ncbi-blast/bin/
+bwa_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+tbl2asn_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+abyss_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+sam2afg: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/samtoafg
+spades_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+celera_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/celera/Linux-amd64/bin/
+gapfiller_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/gapfiller/
+sspace_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/sspace/
+asn2gb_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
+amos_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/amos/bin/
+batik_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/../packages/lib/batik//
+circleator_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/
 
-# Assembler configuration
+perl_lib_path: /data/jamesa/BugBuilder/BugBuilder_rc1/lib/perl5
+
+
+
+# Definition of assembly categories, and platforms
+# These are used for automated assembler selection based on assesment of the 
+# provided reads. These should ideally not overlap or the choice of category
+# may become a bit random
+assembler_categories:
+  - name: 'short_illumina'
+    min_length: 25
+    max_length: 100
+    single_fastq: 'optional' 
+    paired_fastq: 'optional'
+    platforms:
+      - 'illumina'
+    assemblers:
+      - spades
+      - abyss
+    scaffolders:
+      - mauve
+      - SIS
+      - sspace
+  - name: 'long_illumina'
+    min_length:  75
+    max_length: 250
+    single_fastq: 'optional'
+    paired_fastq: 'optional'
+    platforms:
+      - 'illumina'
+    assemblers:
+      - spades
+      - celera
+    scaffolders:
+      - mauve
+      - SIS
+      - sspace
+  - name: '454_IonTorrent'
+    min_length: 100
+    max_length: 1000
+    single_fastq: 'optional'
+    paired_fastq: 'optional'
+    platforms:
+      - '454'
+      - 'iontorrent'
+    assemblers:
+      - celera
+    scaffolders:
+      - mauve
+      - SIS
+  - name: 'long'
+    min_length: 500
+    max_length: 50000
+    long_fastq: 'required'
+    platforms:
+      - 'PacBio'
+      - 'MinION'
+    assemblers: 
+      - PBcR
+  - name: 'hybrid'
+    min_length: 75
+    max_length: 50000
+    platforms: 
+      - hybrid
+    paired_fastq: 'required'
+    long_fastq: 'required'
+    assemblers:
+      - spades
+    scaffolders:
+      - mauve
+
+#Assembler configuration
 assemblers:
    - name: abyss 
      create_dir: 1
-     priority: 1
-     command_pe: /usr/local/abyss/current/bin/abyss-pe in='__FASTQ1__  __FASTQ2__' name=abyss
+     max_length: 200
+     command_pe: __BUGBUILDER_BIN__/run_abyss --tmpdir __TMPDIR__ --fastq1 __FASTQ1__ --fastq2 __FASTQ2__ --read_length __READ_LENGTH__
      contig_output: __TMPDIR__/abyss/abyss-contigs.fa
      scaffold_output: __TMPDIR__/abyss/abyss-scaffolds.fa
-     default_args: k=61
+     downsample_reads: 1
    - name: spades
      create_dir: 0
-     priority: 2
-     command_pe: /usr/local/spades/current/spades.py -1 __FASTQ1__ -2 __FASTQ2__ -o __TMPDIR__/spades
-     command_se: /usr/local/spades/current/spades.py -s __FASTQ1__ -o __TMPDIR__/spades
+     max_length: 300
+     command_se: __ASMDIR__/spades.py -s __FASTQ1__ -o __TMPDIR__/spades
+     command_pe: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ -o __TMPDIR__/spades
+     command_hybrid: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ --pacbio __LONGFASTQ__ -o __TMPDIR__/spades
      contig_output: __TMPDIR__/spades/contigs.fasta
      scaffold_output: __TMPDIR__/spades/scaffolds.fasta
-     default_args: -t 8
-# Scaffolder configuration
+     default_args: -t 8 --careful
+     downsample_reads: 1
+   - name: celera
+     create_dir: 1
+     min_length: 75
+     command_se: __BUGBUILDER_BIN__/run_celera --fastq1 __FASTQ1__ --tmpdir __TMPDIR__ --category __CATEGORY__ --encoding __ENCODING__ --genome_size __GENOME_SIZE__
+     command_pe: __BUGBUILDER_BIN__/run_celera --fastq1 __FASTQ1__ --fastq2 --tmpdir __TMPDIR__ --category __CATEGORY__ --encoding __ENCODING__ --genome_size __GENOME_SIZE__
+     contig_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.ctg.fasta
+     scaffold_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.scf.fasta
+     downsample_reads: 0
+   - name: PBcR
+     create_dir: 1
+     min_length: 500
+     command_se: __BUGBUILDER_BIN__/run_PBcR --fastq __LONGFASTQ__ --tmpdir __TMPDIR__ --genome_size __GENOME_SIZE__ --platform __PLATFORM__
+     contig_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.ctg.fasta
+     scaffold_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.scf.fasta
+     downsample_reads: 0
+
 scaffolders:
-   - name: SIS
+   - name: mauve
      linkage_evidence: align_genus
-     command: __BUGBUILDER_BIN__/run_sis --reference __REFERENCE__ --tmpdir __TMPDIR__
-     scaffold_output: __TMPDIR__/SIS/scaffolds.fasta
-     unscaffolded_output: __TMPDIR__/SIS/unplaced_contigs.fasta
+     command: __BUGBUILDER_BIN__/run_mauve --reference __REFERENCE__ --run __RUN__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
      create_dir: 1
      priority: 1
-     #default_args:
-   - name: sspace
-     linkage_evidence: paired-ends
-     command: __BUGBUILDER_BIN__/run_sspace --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__ 
-     scaffold_output: __TMPDIR__/sspace/BugBuilder.scaffolds.fasta
+     scaffold_output: scaffolds.fasta
+   - name: SIS
+     linkage_evidence: align_genus
+     command: __BUGBUILDER_BIN__/run_sis --reference __REFERENCE__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
+     scaffold_output: scaffolds.fasta
+     unscaffolded_output: unplaced_contigs.fasta
      create_dir: 1
      priority: 2
-     #default_args:
+   - name: sspace
+     linkage_evidence: paired-ends
+     command: __BUGBUILDER_BIN__/run_sspace --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__ --contigs __CONTIGS__ --insert_size __INSSIZE__ --insert_sd __INSSD__ 
+     scaffold_output: BugBuilder.scaffolds.fasta
+     create_dir: 1
+     priority: 3

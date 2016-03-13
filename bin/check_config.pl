@@ -7,8 +7,12 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/check_config.pl $
 # $Author: jamesa $
-# $Revision: 154 $
-# $Date: 2016-02-09 16:35:28 +0000 (Tue, 09 Feb 2016) $
+# $Revision: 179 $
+# $Date: 2016-03-10 10:32:17 +0000 (Thu, 10 Mar 2016) $
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
 #
 ######################################################################
 

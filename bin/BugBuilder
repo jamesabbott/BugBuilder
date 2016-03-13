@@ -4,8 +4,8 @@
 #
 # $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/BugBuilder $
 # $Author: jamesa $
-# $Revision: 169 $
-# $Date: 2016-02-21 17:04:01 +0000 (Sun, 21 Feb 2016) $
+# $Revision: 181 $
+# $Date: 2016-03-13 16:00:41 +0000 (Sun, 13 Mar 2016) $
 #
 # This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
 # and is distributed under the Artistic License 2.0 - see accompanying LICENSE
@@ -197,36 +197,36 @@ set_paths($config);
     }
 
     my $result = GetOptions(
-                             'reference:s'           => \$reference,
-                             'fastq1=s'              => \$fastq1,
-                             'fastq2:s'              => \$fastq2,
-                             'longfastq:s'           => \$long_fastq,
-                             'platform=s'            => \$platform,
-                             'prefix:s'              => \$prefix,
-                             'assembler:s'           => \@assemblers,
-                             'assembler_args:s'      => \@assembler_args,
-                             'scaffolder:s'          => \$scaffolder,
-                             'scaffolder-args:s'     => \$scaffolder_args,
-                             'insert-size:s'         => \$insert_size,
-                             'insert-stddev:s'       => \$stddev,
-                             'genome-size:s'         => \$genome_size,
-                             'downsample:s'          => \$downsample,
-                             'species=s'             => \$species,
-                             'genus=s'               => \$genus,
-                             'strain=s'              => \$strain,
-                             'locustag:s'            => \$locustag,
-                             'centre:s'              => \$centre,
-                             'mode=s'                => \$mode,
-                             'fastqc!'               => \$run_fastqc,
-                             'trim!'                 => \$trim_reads,
-                             'trim-qv:i'             => \$trim_qv,
-                             'trim-length:i'         => \$trim_length,
-                             'split-origin!'         => \$split_origin,
-                             'gap-fill!'             => \$cmd_gap_fill,
+                             'reference:s'          => \$reference,
+                             'fastq1=s'             => \$fastq1,
+                             'fastq2:s'             => \$fastq2,
+                             'longfastq:s'          => \$long_fastq,
+                             'platform=s'           => \$platform,
+                             'prefix:s'             => \$prefix,
+                             'assembler:s'          => \@assemblers,
+                             'assembler_args:s'     => \@assembler_args,
+                             'scaffolder:s'         => \$scaffolder,
+                             'scaffolder-args:s'    => \$scaffolder_args,
+                             'insert-size:s'        => \$insert_size,
+                             'insert-stddev:s'      => \$stddev,
+                             'genome-size:s'        => \$genome_size,
+                             'downsample:s'         => \$downsample,
+                             'species=s'            => \$species,
+                             'genus=s'              => \$genus,
+                             'strain=s'             => \$strain,
+                             'locustag:s'           => \$locustag,
+                             'centre:s'             => \$centre,
+                             'mode=s'               => \$mode,
+                             'fastqc!'              => \$run_fastqc,
+                             'trim!'                => \$trim_reads,
+                             'trim-qv:i'            => \$trim_qv,
+                             'trim-length:i'        => \$trim_length,
+                             'split-origin!'        => \$split_origin,
+                             'gap-fill!'            => \$cmd_gap_fill,
                              'gap-fill-threshold:s' => \$gap_fill_threshold,
-                             'keepall'               => \$keepall,
-                             'help'                  => \$help,
-                             'man'                   => \$man,
+                             'keepall'              => \$keepall,
+                             'help'                 => \$help,
+                             'man'                  => \$man,
                            );
     @assemblers = map { lc($_) } @assemblers;
     $scaffolder = lc($scaffolder) if ($scaffolder);
@@ -324,7 +324,7 @@ set_paths($config);
 
     if ( $fastq2 && $reference ) {
         ## final arg to align_reads is flag to indicate downsamping required...
-       align_reads( $tmpdir, $reference, $mean_read_length, 1 );
+        align_reads( $tmpdir, $reference, $mean_read_length, 1 );
         ( $insert_size, $stddev ) = get_insert_stats( "$tmpdir", $reference );
     }
     my $paired_str;
@@ -588,8 +588,7 @@ sub select_tools {
         # first off, are the requested assemblers available
         foreach my $assembler (@assemblers) {
             unless ( grep ( /^$assembler$/i, @available_assemblers ) ) {
-                die "\nError: $assembler is not a valid assembler\n\n"
-                  . "The following assemblers are configured: ",
+                die "\nError: $assembler is not a valid assembler\n\n" . "The following assemblers are configured: ",
                   join( ", ", @available_assemblers ), "\n\n";
             }
         }
@@ -636,7 +635,7 @@ sub select_tools {
         unless ( grep ( /^$scaffolder$/i, @available_scaffolders ) ) {
             die "\nError: $scaffolder is not a valid scaffolder\n\n" . "The following scaffolders are configured: ",
               join( ", ", @available_scaffolders ), "\n\n";
-        } 
+        }
         my $conf_scaffolders = $config->{'scaffolders'};
         foreach my $conf_scaffolder (@$conf_scaffolders) {
             my $name = lc( $conf_scaffolder->{'name'} );
@@ -651,25 +650,29 @@ sub select_tools {
 
         }
     }
-    else {
-
-        # If no scaffolder is requested, we need to select one based on the 'assembly_type' from the
-        # configuration file, with order-based priority
-        my $scaffolders = $config->{'scaffolders'};
-        foreach my $category ( @{ $config->{'assembler_categories'} } ) {
-            if ( $category->{'name'} eq $type ) {
-
-		SCAFFOLDER: foreach my $scaff(@$scaffolders) {
-			if ($reference) {
-				next SCAFFOLDER unless ($scaff->{'linkage_evidence'} =~ /align/) ;
-			}
-			$scaffolder = $scaff->{'name'};
-			last SCAFFOLDER;
-		}
+#    # Change of plan - let's not select a scaffolder by default, since not scaffolding is the most 
+#    # conservative option
+#    else {
+#
+#
+#        # If no scaffolder is requested, we need to select one based on the 'assembly_type' from the
+#        # configuration file, with order-based priority
+#        my $scaffolders = $config->{'scaffolders'};
+#        foreach my $category ( @{ $config->{'assembler_categories'} } ) {
+#            if ( $category->{'name'} eq $type ) {
+#
+#              SCAFFOLDER: foreach my $scaff (@$scaffolders) {
+#                    if ($reference) {
+#                        next SCAFFOLDER unless ( $scaff->{'linkage_evidence'} =~ /align/ );
+#                    }
+#                    $scaffolder = $scaff->{'name'};
+#                    last SCAFFOLDER;
 #                }
-            }
-        }
-    }
+#
+        #        #                }
+        #    }
+        #}
+    #}
 
     return ( \@assemblers, $scaffolder );
 
@@ -914,7 +917,7 @@ sub run_fastqc {
     my $type   = shift;
 
     message("Running FastQC...");
-    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir          or die "Error chdiring to $tmpdir: $!";
     mkdir "$tmpdir/fastqc" or die "Error creating $tmpdir/fastqc: $!";
 
     my $fastq1     = readlink("$tmpdir/read1.fastq");
@@ -927,7 +930,7 @@ sub run_fastqc {
     $cmd .= " $tmpdir/$long_fastq" if ($long_fastq);
     $cmd .= " >$tmpdir/fastqc/fastqc.log 2>&1";
 
-    system($cmd) == 0 or die "Error running command $cmd: $!";
+    system($cmd) == 0      or die "Error running command $cmd: $!";
     chdir "$tmpdir/fastqc" or die "Error chdiring to $tmpdir/fastqc: $!";
 
     my $fail = 0;
@@ -1299,7 +1302,7 @@ sub downsample_reads {
 
     my $seqtk_dir = $config->{'seqtk_dir'};
     mkdir "$tmpdir/downsampling" or die "Error creating  $tmpdir/downsampling: $!";
-    chdir "$tmpdir/" or die "Error chdiring to $tmpdir/ downsampling : $! ";
+    chdir "$tmpdir/"             or die "Error chdiring to $tmpdir/ downsampling : $! ";
     print "Projected Coverage: ${orig_coverage}x: Downsampling reads to ${coverage}x...\n";
     foreach my $fastq (qw(read1.fastq read2.fastq)) {
         if ( -e "$tmpdir/$fastq" ) {
@@ -1493,7 +1496,7 @@ sub merge_assemblies {
 
     message("Merging assemblies...");
 
-    mkdir "$tmpdir/minimus" or die " Error creating $tmpdir/ minimus          : $! ";
+    mkdir "$tmpdir/minimus"    or die " Error creating $tmpdir/ minimus          : $! ";
     chdir "$tmpdir / minimus " or die " Error running chdir $tmpdir / minimus : $! ";
 
     my $assemblers = $config->{'assemblers'};
@@ -1637,7 +1640,7 @@ sub align_reads {
     system($cmd) == 0 or die "Error running $cmd";
 
     $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2> $tmpdir/bwa/samtools_index.log";
-    system($cmd) == 0 or die "Error running $cmd";
+    system($cmd) == 0                 or die "Error running $cmd";
     unlink("$tmpdir/bwa/read1.fastq") or die " Error unlinking $tmpdir/bwa/read1.fastq: $! ";
     unlink("$tmpdir/bwa/read2.fastq")
       or die " Error unlinking $tmpdir/bwa/read1.fastq : $! "
@@ -2010,7 +2013,7 @@ sub run_scaffolder {
         symlink( "$run_dir/scaffolds_renumbered.fasta", "scaffolds.fasta" )
           or die "Error creating symlink: $! ";
         if ( defined($unscaffolded_output) ) {
-            symlink( $unscaffolded_output, "unplaced_contigs.fasta" )
+            symlink( "$run_dir/$unscaffolded_output", "unplaced_contigs.fasta" )
               or die "Error creating symlink: $!";
         }
         elsif ( -e "$tmpdir/${scaffolder}/unplaced_contigs.fasta" ) {
@@ -2304,7 +2307,7 @@ sub build_agp {
         }
     }
 
-    close AGP or warn "Error closring $tmpdir/scaffolds.agp: $!";
+    close AGP     or warn "Error closring $tmpdir/scaffolds.agp: $!";
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
 
     unlink "scaffolds.fasta" or die "Error removing scaffolds.fasta: $!";
@@ -2557,7 +2560,7 @@ sub find_origin {
       SCAFFOLD: while ( my $scaffold = $io->next_seq() ) {
             my ( $ori_scaffold, $pos ) = split( /:/, $origin );
             if ( $ori_scaffold eq $scaffold->display_id() ) {
-                my $part_a = $scaffold->subseq( 1,        $pos );
+                my $part_a = $scaffold->subseq( 1, $pos );
                 my $part_b = $scaffold->subseq( $pos + 1, $scaffold->length() );
                 my $ori_a = Bio::Seq->new( -display_id => $scaffold->display_id . "_A", -seq => $part_a );
                 my $ori_b = Bio::Seq->new( -display_id => $scaffold->display_id . "_B", -seq => $part_b );
@@ -2593,7 +2596,7 @@ sub find_origin {
             $outIO->write_seq($seq);
         }
 
-        chdir $tmpdir or die "Error changing to $tmpdir: $!";
+        chdir $tmpdir                     or die "Error changing to $tmpdir: $!";
         unlink("$tmpdir/scaffolds.fasta") or die "Error unlinking $tmpdir/scaffolds.fasta:$!";
         symlink( "$tmpdir/origin/scaffolds_renumbered.fasta", "$tmpdir/scaffolds.fasta" )
           or die "Error symlinking scaffolds_ori_split.fasta:$!";
@@ -3093,7 +3096,7 @@ sub merge_annotations {
         $outIO->write_seq($embl_record);
     }
 
-    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir           or die "Error chdiring to $tmpdir: $!";
     unlink "scaffolds.embl" or die "Error unlinking scaffolds.embl: $!";
     symlink( "annotation_merge/scaffolds.embl", "scaffolds.embl" )
       or die "Error creating scaffolds.embl symlink: $!";
