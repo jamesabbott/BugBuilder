@@ -1,0 +1,55 @@
+#!/bin/bash
+
+################################################################################
+#
+# $HeadURL$
+# $Author$
+# $Revision$
+# $Date$
+#
+# Script to clean VM image prior to release...
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+################################################################################
+
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
+echo This script will shutdown the VM.
+read -p "Are you sure you wish to continue? " -n 1 -r
+echo   
+if [[ $REPLY =~ ^[Yy]$ ]]
+  then
+
+  echo "Cleaning temporary directory..."
+  find /BugBuilder_tmp/* -type d -prune -exec rm -rf {} \;
+
+  echo "Removing example run outputs..."
+  find ${BUGBUILDER_HOME}/examples/ -type d -name "BugBuilder_*" -exec rm -rf {} \;
+
+  if [ -e ${BUGBUILDER_HOME}/etc/first_run ]; 
+  then
+	echo "Removing first_run flat..."
+	rm ${BUGBUILDER_HOME}/etc/first_run
+  fi
+
+  echo "Removing bash histories..."
+  rm /home/BugBuilder/.bash_history
+  rm /root/.bash_history
+
+echo "Removing log files"
+  logrotate --force /etc/logrotate.conf
+  find /var/log -name "*[0-9]" -exec rm -f {} \;
+
+  echo "Clearing ring buffer..."
+  dmesg -C
+
+  echo "Shutting down..."
+  shutdown -h now
+
+fi
