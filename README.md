@@ -19,7 +19,7 @@ Obtain the latest version of the software by running:
 <code>git clone git://github.com/jamesabbott/BugBuilder/</code>
 
 Full installation and configuration instructions are available in the user guide, which can be
-obtained from http://www.imperial.ac.uk/bioinfsupport/resources/software/BugBuilder, or if you have
+obtained from http://www.imperial.ac.uk/bioinformatics-support-service/resources/software/BugBuilder/, or if you have
 latex installed on your machine you can build the documentation locally:
 
 <code>
