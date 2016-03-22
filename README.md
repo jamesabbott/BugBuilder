@@ -15,12 +15,18 @@ BugBuilder is implemented in Perl and is distributed under the Artistic License 
 Installation
 ============
 
-Obtain the latest version of the software by running:
+A virtual machine image preconfigured with the freely redistributable
+prerequistite packages is available from
+http://web.bioinformatics.ic.ac.uk/BugBuilder/BugBuilder_current.vdi
+
+The latest version of the software can be downloaded by running:
 <code>git clone git://github.com/jamesabbott/BugBuilder/</code>
 
-Full installation and configuration instructions are available in the user guide, which can be
-obtained from http://www.imperial.ac.uk/bioinformatics-support-service/resources/software/BugBuilder/, or if you have
-latex installed on your machine you can build the documentation locally:
+Full installation and configuration instructions are available in the user
+guide, which can be obtained from
+http://www.imperial.ac.uk/bioinformatics-support-service/resources/software/BugBuilder/,
+or if you have latex installed on your machine you can build the documentation
+locally:
 
 <code>
 [jamesa@codon ~]$ cd BugBuilder/doc
