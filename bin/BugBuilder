@@ -1423,7 +1423,7 @@ sub run_assembler {
     get_contig_stats( "$contig_output", 'contigs' );
 
     # Only generate scaffold stats for paired read alignments...
-    get_contig_stats( "$scaffold_output ", 'scaffolds' )
+    get_contig_stats( "$scaffold_output", 'scaffolds' )
       if ( $scaffold_output && -e $scaffold_output && -e "$tmpdir/read2.fastq" );
 
     # rename contigs/scaffolds for consistent naming, since we need to retrieve by
