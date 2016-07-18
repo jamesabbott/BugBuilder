@@ -3154,10 +3154,10 @@ sub run_circleator {
     }
 
     my $cmd = "$circleator --config circleator.cfg --pad=200 --data $embl > circleator.svg 2> circleator.log";
-    system($cmd) == 0 or die "Error running $cmd: $!";
+    system("$cmd") == 0 or die "Error running $cmd: $!";
 
     $cmd = "$java -Djava.awt.headless=true -jar $batik_jar -m image/png -d . circleator.svg 1>&2 > rasterizer.log";
-    system($cmd) == 0 or die "Error running $cmd: $!";
+    system("$cmd") == 0 or die "Error running $cmd: $!";
 
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
     symlink( "circleator/circleator.svg", "circleator.svg" ) or die "Error creating symlink: $!";
