@@ -1316,8 +1316,8 @@ sub downsample_reads {
       or die " Error unlinking $tmpdir/read1.fastq : $! ";
     symlink( "downsampling/read1.fastq", "read1.fastq" )
       or die " Error creating read1.fastq symlink : $! ";
-    if ( -e "$tmpdir/read2.fastq " ) {
-        unlink("$tmpdir/read2.fastq ")
+    if ( -e "$tmpdir/read2.fastq" ) {
+        unlink("$tmpdir/read2.fastq")
           or die "Error unlinking $tmpdir/read2.fastq: $! ";
         symlink( "downsampling/read2.fastq", "read2.fastq" )
           or die " Error creating read2.fastq symlink: $! ";
@@ -1436,7 +1436,7 @@ sub run_assembler {
     my $inIO = Bio::SeqIO->new( -format => 'fasta', -file => $contig_output );
     my $outIO =
       Bio::SeqIO->new( -format => 'fasta',
-                       -file   => " >BugBuilder.contigs.fasta" );
+                       -file   => ">BugBuilder.contigs.fasta" );
     my $contig_count = 0;
     while ( my $seq = $inIO->next_seq() ) {
         my $contig_id = sprintf( "contig_%06s", ++$contig_count );
@@ -1496,8 +1496,8 @@ sub merge_assemblies {
 
     message("Merging assemblies...");
 
-    mkdir "$tmpdir/minimus"    or die " Error creating $tmpdir/ minimus          : $! ";
-    chdir "$tmpdir / minimus " or die " Error running chdir $tmpdir / minimus : $! ";
+    mkdir "$tmpdir/minimus"    or die " Error creating $tmpdir/minimus          : $! ";
+    chdir "$tmpdir/minimus" or die " Error running chdir $tmpdir/minimus : $! ";
 
     my $assemblers = $config->{'assemblers'};
     foreach my $assembler (@$assemblers) {
@@ -1505,27 +1505,27 @@ sub merge_assemblies {
         my $contig_output = $assembler->{'contig_output'};
         $contig_output =~ s/__TMPDIR__/$tmpdir/;
 
-        symlink( $contig_output, "$name . seq " )
-          or die " Could not symlink $contig_output->$name . seq : $! ";
+        symlink( $contig_output, "$name.seq" )
+          or die " Could not symlink $contig_output->$name.seq : $! ";
 
     }
 
     my $cmd = $config->{'amos_dir'}
-      . " bin / tarchive2amos -o merged spades . seq abyss . seq > $tmpdir / minimus / tarchive2amos . log 2 > &1 ";
+      . "bin/tarchive2amos -o merged spades.seq abyss.seq > $tmpdir/minimus/tarchive2amos.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
     my $count = `grep -c '>' $tmpdir/spades/contigs.fasta`;
     chomp $count;
 
-    $cmd = $config->{'amos_dir'} . " bin / minimus2 merged -D REFCOUNT = $count > /dev/ null 2 > &1 ";
+    $cmd = $config->{'amos_dir'} . "bin/minimus2 merged -D REFCOUNT=$count > /dev/null 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
-    $cmd = " cat merged . singletons . seq >> merged . fasta ";
+    $cmd = "cat merged.singletons.seq >> merged.fasta";
     system($cmd) == 0 or die " Error running $cmd";
 
     # some contigs ids can end up non-unique, so need to renumber these
     my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => 'merged.fasta' );
-    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => " > renumbered . fasta " );
+    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">renumbered.fasta" );
     my $i     = 0;
     while ( my $seq = $inIO->next_seq() ) {
         $seq->id( ++$i );
@@ -1533,11 +1533,11 @@ sub merge_assemblies {
     }
 
     chdir $tmpdir or die " Error chdiring to $tmpdir: $! ";
-    symlink( " minimus / renumbered . fasta ", " contigs . fasta " )
+    symlink( "minimus/renumbered.fasta", "contigs.fasta" )
       or die " Error creating symlink : $! ";
 
     print " Merged assembly statistics : \n == == == == == == == == == == == == == == \n ";
-    get_contig_stats( "$tmpdir / minimus / renumbered . fasta ", 'contigs' );
+    get_contig_stats( "$tmpdir/minimus/renumbered.fasta", 'contigs' );
 
     return (0);
 
@@ -2061,7 +2061,7 @@ sub run_gapfiller {
 
     my $scaffIO = Bio::SeqIO->new( -file => "$tmpdir/scaffolds.fasta", -format => 'fasta' );
     my $filledScaffOutIO =
-      Bio::SeqIO->new( -file => " >$tmpdir/GapFiller/GapFiller.scaffolds.fasta", -format => 'fasta' );
+      Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/GapFiller.scaffolds.fasta", -format => 'fasta' );
     my $contigOutIO = Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/GapFiller.contigs.fasta", -format => 'fasta' );
 
     my $i = 0;
@@ -2146,7 +2146,7 @@ sub build_agp {
     mkdir "$tmpdir/agp" or die "Error creating agp dir: $!";
     chdir "$tmpdir/agp" or die "Error chdiring to $tmpdir/agp: $!";
 
-    open AGP, ">scaffolds.agp "
+    open AGP, ">scaffolds.agp"
       or die "Error opening scaffolds.agp for writing: $! ";
     print AGP "##agp-version 2.0\n";
     print AGP "#$organism\n";
@@ -2355,10 +2355,10 @@ sub run_prokka {
     #use scaffolds if we have them, otherwise contigs....
     my $seqs;
     if ( -e "$tmpdir/scaffolds.fasta" ) {
-        $seqs = "$tmpdir/scaffolds.fasta ";
+        $seqs = "$tmpdir/scaffolds.fasta";
     }
     else {
-        $seqs = "$tmpdir/contigs.fasta ";
+        $seqs = "$tmpdir/contigs.fasta";
     }
 
     #my $prokka_dir;
