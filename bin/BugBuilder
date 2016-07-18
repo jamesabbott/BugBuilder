@@ -1621,8 +1621,8 @@ sub align_reads {
         if ( !-e "$tmpdir/read2.fastq" ) {
 
             # single-ended long reads
-            $cmd = "$bwa_dir/bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $reference.sam"
-              . "2 > $tmpdir/bwa/bwa_mem.log";
+            $cmd = "$bwa_dir/bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $reference.sam "
+              . "2>$tmpdir/bwa/bwa_mem.log";
             system($cmd) == 0 or die "Error running $cmd: $!";
         }
         else {
@@ -1639,7 +1639,7 @@ sub align_reads {
       . "|$samtools_dir/samtools sort - $tmpdir/bwa/$reference";
     system($cmd) == 0 or die "Error running $cmd";
 
-    $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2> $tmpdir/bwa/samtools_index.log";
+    $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
     system($cmd) == 0                 or die "Error running $cmd";
     unlink("$tmpdir/bwa/read1.fastq") or die " Error unlinking $tmpdir/bwa/read1.fastq: $! ";
     unlink("$tmpdir/bwa/read2.fastq")
@@ -2458,7 +2458,7 @@ sub amosvalidate {
     message("Converting to amos bank...");
     my $cmd = $config->{'sam2afg'};
     $cmd .= " -m $insert_size -s $insert_stddev " if ( $insert_size && $insert_stddev );
-    $cmd .= "$tmpdir/amos/${seq_file} $tmpdir/bwa/${seq_file}.sam";
+    $cmd .= " $tmpdir/amos/${seq_file} $tmpdir/bwa/${seq_file}.sam";
     $cmd .= " > amos.afg";
 
     system($cmd) == 0 or die "Error executing $cmd: $!";
