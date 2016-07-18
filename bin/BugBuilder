@@ -1747,7 +1747,7 @@ sub run_scaffolder {
     message(" Starting $scaffolder");
 
     my ( $cmd, $scaffold_output, $unscaffolded_output, $create, $linkage_evidence, $default_args );
-    my $blast_dir = $config->{'blast_dir'} . '/bin/';
+    my $blast_dir = $config->{'blast_dir'};
 
     my $scaffolders = $config->{'scaffolders'};
     foreach my $conf_scaffolder (@$scaffolders) {
