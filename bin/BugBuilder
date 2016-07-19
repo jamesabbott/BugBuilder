@@ -2396,9 +2396,40 @@ sub run_prokka {
     open TMP, "$tmpdir/prokka/prokka.tmp" or die "Error opening prokka.tmp:$!";
     open EMBL, ">$tmpdir/prokka/prokka.embl"
       or die "Error opening prokka.embl: $!";
+    my $sq_unwrapped='';
     while (<TMP>) {
         s/contig/scaffold_/;
-        print EMBL;
+        # There is an apparent bug in asn2gb (tested on v.16.6) where it wraps long
+        # SQ lines into multiple SQ lines:
+        ###
+        #XX
+        #SQ   Sequence 5492994 BP; 1170678 A; 1564111 C; 1566474 G; 1170531 T; 21200
+        #SQ   other;
+        #     gtggtctgcc tcgcataaag cggtatgaaa atggattgaa gcccgggccg tggattctac        60
+        ###
+        # Bioperl EMBL parser (master branch of 2016-07-19) expects a single SQ line, and
+        # reads SQ line that follows as part of the sequence. This results in a corrupt
+        # sequence after the annotation_merge step.
+        # The official standard only speaks about a single SQ line per entry:
+        # ftp://ftp.ebi.ac.uk/pub/databases/ena/sequence/release/doc/usrman.txt
+        # We join such wrapped SQ lines back into one line.
+        if (/^SQ/) {
+           if ($sq_unwrapped eq '') {
+               $sq_unwrapped = 'SQ';
+           }
+           $sq_unwrapped .= s/^SQ//;
+        }
+        else {
+            if ($sq_unwrapped ne '') {
+                print EMBL $sq_unwrapped;
+                $sq_unwrapped = '';
+            }
+            print EMBL;
+        }
+    }
+    if ($sq_unwrapped ne '') {
+        print EMBL $sq_unwrapped;
+        $sq_unwrapped = '';
     }
     close EMBL;
     close TMP;
