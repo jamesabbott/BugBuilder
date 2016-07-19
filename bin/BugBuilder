@@ -1793,7 +1793,7 @@ sub run_scaffolder {
             # blast indexing doesn't produce a workable index from a symlink, so need to copy the reference sequences
             copy( $reference, "$run_dir/reference.fasta" )
               or die "Error copying reference.fasta:$! ";
-            symlink( "$tmpdir/contigs.fasta", "$run_dir/contigs.fasta" );
+            symlink( "$contigs", "$run_dir/contigs.fasta" );
             my $fasta_db = Bio::DB::Fasta->new("$run_dir/contigs.fasta");
 
             my $blast_cmd =
@@ -1923,7 +1923,11 @@ sub run_scaffolder {
     else {    #non reference-guided scaffolding....
 
         my $exec_cmd = $cmd;
-
+        # A kludge to work when tmpdir is not the top run dir - needed
+        # because align_reads concatenates path from tmpdir and contigs.fasta
+        if( ! -e "$tmpdir/contigs.fasta" ) {
+            symlink( $contigs, "$tmpdir/contigs.fasta" );
+        }
         # if no reference provided we won't have an estimate of insert size,
         # so need to get this by read alignment vs the assembly.
         if ( !$insert_size ) {
