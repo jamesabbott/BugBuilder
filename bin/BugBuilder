@@ -1857,11 +1857,14 @@ sub run_scaffolder {
         # Now run the selecting scaffolder on each set of reference and contigs...
         foreach my $ref_id (@ref_ids) {
 
+            my $scaff_contigs = "reference_${ref_id}_contigs";
+            # Only if anything mapped to this reference
+            next unless ( -e "${run_dir}/${scaff_contigs}" );
+            
             print "\nScaffolding vs. $ref_id\n";
 
             my $exec_cmd      = $cmd;
             my $reference     = "reference_${ref_id}";
-            my $scaff_contigs = "reference_${ref_id}_contigs";
 
             my @replace = ( $cmd, $scaffold_output );
             foreach ( $exec_cmd, $scaffold_output ) {
@@ -1907,7 +1910,7 @@ sub run_scaffolder {
             #symlink( "$run_dir/reference_${ref_ids[0]}_contigs", "$run_dir/${scaffolder}_${ref_id}/$contigs" )
             #or die "Error linking $contigs:$! ";
 
-            system($exec_cmd) == 0 or die "Error executing $exec_cmd:$!";
+            system("$exec_cmd") == 0 or die "Error executing $exec_cmd:$!";
             my $scaffIO =
               Bio::SeqIO->new( -format => 'fasta', -file => "$run_dir/${scaffolder}_${ref_id}/scaffolds.fasta" )
               or die "Error opening $run_dir/${scaffolder}_${ref_id}/scaffolds.fasta: $!";
