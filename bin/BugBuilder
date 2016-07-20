@@ -112,9 +112,13 @@ stage taking a significant amount of time. Default: on
 =item B<keepall>: Return full working directory with intermediate files, rather the just returning
 the results (default off)
 
+=item B<[no-]gap-seal>: Determine whether to run Abyss sealer to close scaffold gaps. Default: on
+
 =item B<help>: display short help text
 
 =item B<man>: display full help text
+
+=item B<threads>: Number of threads to use for multi-threaded applications. Default: 1
 
 =back
 
@@ -158,6 +162,7 @@ use Bio::DB::Fasta;
 use Text::ASCIITable;
 use DateTime;
 use Statistics::Basic qw(:all);
+use File::Which qw(which);
 
 $|++;
 
@@ -183,6 +188,8 @@ set_paths($config);
     my $split_origin       = 1;
     my $gap_fill           = 1;
     my $gap_fill_threshold = 150;
+    my $gap_seal           = 1;
+    my $threads            = 1;
 
     my $fastq_error = 0;
 
@@ -224,9 +231,11 @@ set_paths($config);
                              'split-origin!'        => \$split_origin,
                              'gap-fill!'            => \$cmd_gap_fill,
                              'gap-fill-threshold:s' => \$gap_fill_threshold,
+                             'gap-seal!'            => \$gap_seal,
                              'keepall'              => \$keepall,
                              'help'                 => \$help,
                              'man'                  => \$man,
+                             'threads:i'             => \$threads,
                            );
     @assemblers = map { lc($_) } @assemblers;
     $scaffolder = lc($scaffolder) if ($scaffolder);
@@ -360,6 +369,7 @@ set_paths($config);
     $tb->addRow( "Trim length",         $trim_length ) if ($trim_reads);
     $tb->addRow( "Split Origin",        $split_origin );
     $tb->addRow( "Gap Fill",            $gap_fill );
+    $tb->addRow( "Gap Seal",            $gap_seal );
     print "$tb\n";
 
     print "Running in $mode mode\n";
@@ -370,7 +380,6 @@ set_paths($config);
     #if we are running a single assembler we need to symlink its contig output
     # into $tmpdir - pass a $link flag to run_assembler
     $link = 1 if ( $#assemblers == 0 );
-
     for ( my $i = 0 ; $i <= $#assemblers ; $i++ ) {
         $pm->start and next();
         my $assembler = $assemblers[$i];
@@ -413,6 +422,17 @@ set_paths($config);
             }
         }
     }
+    
+    if ( -e "$tmpdir/scaffolds.fasta" && which 'abyss-sealer' ) {
+        if ($gap_seal > 0) {
+            message("Assembly Scaffold Statistics before gap sealing...");
+            get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+            run_gapsealer( $tmpdir, $encoding, $threads );
+            message("Assembly Scaffold Statistics after gap sealing...");
+            get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+        }
+    }
+
     if ( -e "$tmpdir/scaffolds.fasta" ) {
         build_agp( $tmpdir, $organism, $mode, $scaffold_type );
     }
@@ -526,6 +546,8 @@ sub set_paths {
       if ( $config->{'barrnap_dir'} );
     $ENV{'PATH'} = $ENV{'PATH'} . ":" . $config->{'mauve_dir'} . '/linux-x64'
       if ( $config->{'mauve_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'abyss_sealer_dir'}
+      if ( $config->{'abyss_sealer_dir'} );
 
     if ( $config->{'python_lib_path'} ) {
         if ( defined( $ENV{'PYTHONPATH'} ) ) {
@@ -2110,6 +2132,78 @@ sub run_gapfiller {
     unlink "scaffolds.fasta"
       or warn "Error removing scaffolds.fasta : $! ";
     symlink( "GapFiller/GapFiller.scaffolds.fasta", "scaffolds.fasta" )
+      or die "Error creating symlink: $! ";
+
+    return ();
+
+}
+
+######################################################################
+#
+# run_gapsealer
+#
+# Runs abyss-sealer on scaffolded assembly
+#
+# required params: $ (tmpdir)
+#
+# returns        : 0
+#
+######################################################################
+
+sub run_gapsealer {
+
+    my $tmpdir = shift;
+    my $encoding = shift;
+    my $threads = shift;
+
+    message("Starting gap sealer...");
+
+    mkdir "$tmpdir/gapsealer" or die "Error creating $tmpdir/gapsealer: $! ";
+    chdir "$tmpdir/gapsealer" or die "Error running chdir $tmpdir/gapsealer: $! ";
+
+    my $filled_prefix = "gap_sealed";
+
+    # First, try to use reads error-corrected by Spades if they exits
+    my @reads = glob("$tmpdir/spades/corrected/*.cor.fastq.gz");
+    if (!@reads) {
+        # Otherwise, use the input reads and rely on error-correction built into abyss-sealer
+        @reads = glob("$tmpdir/read[0-9].fastq");
+    }
+
+    @reads or die "Read files not found\n";
+
+    my $enc_opt = '--standard-quality';
+    if ( $encoding ne 'sanger' ) {
+        $enc_opt = '--illumina-quality';
+    }
+    # --no-trim-masked is critical. Contrary to --help output, trimming of
+    # lower case nucleotides is the default in version 1.9.0, and everything is lower case after
+    # the contig orientation step, except for the Ns.
+    my $cmd = "abyss-sealer --no-trim-masked -k95 -k90 -k80 -P 10 -j $threads $enc_opt -o $filled_prefix -S $tmpdir/scaffolds.fasta " . join(" ",@reads);
+
+    (system($cmd) == 0) or die "Error running abyss-sealer";
+
+    my $filledIO = Bio::SeqIO->new( -file => "${filled_prefix}_scaffold.fa", -format => 'fasta' );
+    my $filledScaffOutIO =
+      Bio::SeqIO->new( -file => ">gapsealer.scaffolds.fasta", -format => 'fasta' );
+
+    while ( my $filled_scaff = $filledIO->next_seq() ) {
+
+        # expand gaps of a single N to 100 Ns as per convention for unknown gap sizes,
+        # since these are probably the 1 base remaining following gap closure...
+        my $scaff_seq = $filled_scaff->seq();
+        my $gap       = 'N' x 100;
+
+        $scaff_seq =~ s/N+/$gap/g;
+        $filled_scaff->seq($scaff_seq);
+        $filledScaffOutIO->write_seq($filled_scaff);
+    }
+
+    chdir "$tmpdir" or die "Error chdiring: $! ";
+
+    unlink "scaffolds.fasta"
+      or warn "Error removing scaffolds.fasta : $! ";
+    symlink( "gapsealer/gapsealer.scaffolds.fasta", "scaffolds.fasta" )
       or die "Error creating symlink: $! ";
 
     return ();
