@@ -120,6 +120,13 @@ the results (default off)
 
 =item B<threads>: Number of threads to use for multi-threaded applications. Default: 1
 
+=item B<out-dir>: Path for the output directory. If not provided, will be generated under the current 
+working directory.
+
+=item B<tmp-dir>: Path for the temporary working directory. 
+If not provided, unique temporary directory will be created under the temp_dir path set in
+a config file.
+
 =back
 
 =head1 REPORTING BUGS
@@ -190,6 +197,8 @@ set_paths($config);
     my $gap_fill_threshold = 150;
     my $gap_seal           = 1;
     my $threads            = 1;
+    my $out_dir            = undef;
+    my $tmpdir             = undef;
 
     my $fastq_error = 0;
 
@@ -236,6 +245,8 @@ set_paths($config);
                              'help'                 => \$help,
                              'man'                  => \$man,
                              'threads:i'             => \$threads,
+                             'out-dir:s'             => \$out_dir,
+                             'tmp-dir:s'             => \$tmpdir
                            );
     @assemblers = map { lc($_) } @assemblers;
     $scaffolder = lc($scaffolder) if ($scaffolder);
@@ -263,15 +274,19 @@ set_paths($config);
     ($species) ? ( $organism .= " $species" ) : ( $organism .= " sp." );
     ( $organism .= " $strain" ) if ($strain);
 
-    my $out_dir;
     my $dt = DateTime->now();
-    if ( $organism =~ /unknown/ ) {
-        $out_dir = "BugBuilder_" . $dt->dmy . "_" . $dt->hms('_');
+    if ( ! $out_dir ) {
+        if ( $organism =~ /unknown/ ) {
+            $out_dir = "BugBuilder_" . $dt->dmy . "_" . $dt->hms('_');
+        }
+        else {
+            $out_dir = "BugBuilder_" . $organism;
+            $out_dir =~ s/[ \-\/]_//g;
+        }
     }
-    else {
-        $out_dir = "BugBuilder_" . $organism;
-        $out_dir =~ s/[ \-\/]_//g;
-    }
+    
+    $out_dir = Cwd::abs_path($out_dir);
+
     my $log = $out_dir . ".log";
 
     my $paired = 1 if ( defined($fastq2) );
@@ -285,8 +300,7 @@ set_paths($config);
 
     my $orig_dir = cwd();
 
-    my $tmpdir_ref = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform );
-    my $tmpdir = $tmpdir_ref->dirname();
+    $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
 
     $reference = basename($reference) if ($reference);
 
@@ -489,7 +503,7 @@ set_paths($config);
     print "\nAnnotated features\n==================\n\n";
     print $tb, "\n";
 
-    return_results( $tmpdir, $out_dir, $orig_dir, $prefix, $keepall, $mode );
+    return_results( $tmpdir, $out_dir, $prefix, $keepall, $mode );
     chdir $orig_dir or warn "Failed to chdir:$ !";
 
     message("All done...");
@@ -709,6 +723,9 @@ sub select_tools {
 #                   $ (path to fastq2)
 #                   $ (path to longread fastq file)
 #                   $ (path to fastafile)
+#  optional params: $ (platform)
+#                   $ (preset value for tempdir)
+#                   
 #
 #  returns        : $ (path to tempdir)
 #
@@ -720,7 +737,18 @@ sub setup_tempdir {
     my $fastq2      = shift;
     my $long_fastq  = shift;
     my $fasta       = shift;
-    my $scratch_dir = $config->{'tmp_dir'};
+    my $platform    = shift;
+    my $tmpdir      = shift;
+    my $scratch_dir;
+
+    if( ! $tmpdir ) {
+        $scratch_dir = $config->{'tmp_dir'};
+        $scratch_dir = Cwd::abs_path($scratch_dir);
+    }
+    else {
+        $tmpdir = Cwd::abs_path($tmpdir);
+        $scratch_dir = dirname($tmpdir);
+    }
 
     if ( !-d $scratch_dir ) {
         my $err;
@@ -734,29 +762,36 @@ sub setup_tempdir {
             }
         }
     }
-    my $tempdir = File::Temp->newdir( DIR => $scratch_dir );
-    $tempdir->unlink_on_destroy(0);
-    print "Created working directory: " . $tempdir->dirname . "\n";
-    my $tmpdir = $tempdir->dirname;
+
+    if( ! $tmpdir ) {
+        my $tempdir = File::Temp->newdir( DIR => $scratch_dir );
+        $tempdir->unlink_on_destroy(0);
+        $tmpdir = $tempdir->dirname;
+    }
+    else {
+        ( ! -d $tmpdir ) or die "Specified working directory $tmpdir already exists";
+        mkdir($tmpdir) or die "Unable to create working directory ${tmpdir}\n";
+    }
+    print "Created working directory: ${tmpdir}\n";
 
     if ($fastq1) {
         my $basename = basename($fastq1);
-        copy( $fastq1, $tempdir->dirname() ) or die "Error copying $basename: $!";
+        copy( $fastq1, $tmpdir ) or die "Error copying $basename: $!";
     }
 
     if ($fastq2) {
         my $basename = basename($fastq2);
-        copy( $fastq2, $tempdir->dirname() ) or die "Error copying $basename: $!";
+        copy( $fastq2, $tmpdir ) or die "Error copying $basename: $!";
     }
 
     if ($long_fastq) {
         my $basename = basename($long_fastq);
-        copy( $long_fastq, $tempdir->dirname() ) or die "Error copying $basename: $!";
+        copy( $long_fastq, $tmpdir ) or die "Error copying $basename: $!";
     }
 
     if ($fasta) {
         my $basename = basename($fasta);
-        copy( $fasta, $tempdir->dirname() )
+        copy( $fasta, $tmpdir )
           or die "Error copying $basename: $!";
     }
 
@@ -831,7 +866,7 @@ sub setup_tempdir {
           or die "Error  symlinking $fasta: $!";
     }
 
-    return $tempdir;
+    return $tmpdir;
 
 }
 
@@ -856,13 +891,12 @@ sub return_results {
 
     my $tmpdir       = shift;
     my $dir          = shift;
-    my $original_dir = shift;
     my $prefix       = shift;
     my $dircopy      = shift;
     my $mode         = shift;
 
     if ($dircopy) {
-        dircopy( $tmpdir, "$original_dir/$dir" )
+        dircopy( $tmpdir, "$dir" )
           or die "Error copying $tmpdir: $!";
     }
     else {
@@ -880,16 +914,16 @@ sub return_results {
             push @files, @found;
         }
 
-        mkdir "$original_dir/$dir"
-          or die "Error creating $original_dir/$dir: $!";
+        mkdir "$dir"
+          or die "Error creating $dir: $!";
 
         foreach my $file (@files) {
             my $outfile;
             if ($prefix) {
-                $outfile = "$original_dir/$dir/${prefix}_${file}";
+                $outfile = "$dir/${prefix}_${file}";
             }
             else {
-                $outfile = "$original_dir/$dir/$file";
+                $outfile = "$dir/$file";
             }
             my $target;
             if ( -l "$tmpdir/$file" ) {
@@ -905,16 +939,14 @@ sub return_results {
         if ( $mode eq 'draft' ) {
             my $outfile;
             if ($prefix) {
-                $outfile = "$original_dir/$dir/${prefix}_assembly.bnk";
+                $outfile = "$dir/${prefix}_assembly.bnk";
             }
             else {
-                $outfile = "$original_dir/$dir/assembly.bnk";
+                $outfile = "$dir/assembly.bnk";
             }
             dircopy( "$tmpdir/amos/assembly.bnk", "$outfile" )
-              or die "Error coying $tmpdir/amos/assembly.bnk: $!";
+              or die "Error copying $tmpdir/amos/assembly.bnk: $!";
         }
-
-        chdir $original_dir or die "Could not chdir to $original_dir: $!";
 
     }
 
