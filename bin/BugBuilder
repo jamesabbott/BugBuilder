@@ -3047,11 +3047,13 @@ sub get_contig_to_iid_mapping {
 #
 ######################################################################
 
+
 sub summarise_amosvalidate {
 
     my $tmpdir = shift;
-
+    
     message("processing amosvalidate results...");
+
     my $amosvalidate = $tmpdir . "/amos";
     my $iid_mapping  = $tmpdir . "/amos/ctg_to_iid.txt";
     my %results;
@@ -3059,7 +3061,8 @@ sub summarise_amosvalidate {
     # Read Contig->iid mapping into a hash
     my %contig_to_iid;
     open IID, $iid_mapping or die "Error opening $iid_mapping: $!";
-    while ( my ( $contig, $iid ) = split( /\s+/, <IID> ) ) {
+    while (<IID>) {
+        my ( $contig, $iid ) = split( /\s+/ );
         chomp $iid;
         $contig_to_iid{$iid} = $contig;
         $results{$contig}    = [];
@@ -3078,7 +3081,8 @@ sub summarise_amosvalidate {
 
     open KMER, "$amosvalidate/$kmer"
       or die "Could not open $amosvalidate/$kmer: $!";
-    while ( my @fields = split( /\s+/, <KMER> ) ) {
+    while ( <KMER> ) {
+        my @fields = split( /\s+/ );
         my $contig_id = $contig_to_iid{ $fields[0] };
         my $start     = $fields[2];
         my $end       = $fields[3];
@@ -3091,7 +3095,8 @@ sub summarise_amosvalidate {
 
     open DEPTH, "$amosvalidate/$depth"
       or die "Could not open $amosvalidate/$depth: $!";
-    while ( my @fields = split( /\s+/, <DEPTH> ) ) {
+    while ( <DEPTH> ) {
+        my @fields = split( /\s+/ );
         my $contig_id = $contig_to_iid{ $fields[0] };
         my $start     = $fields[2];
         my $end       = $fields[3];
@@ -3102,9 +3107,11 @@ sub summarise_amosvalidate {
     }
     close DEPTH;
 
+    $snps or die "Extracted file name for SNPs is empty";
     open SNPS, "$amosvalidate/$snps"
       or die "Could not open $amosvalidate/$snps: $!";
-    while ( my @fields = split( /\s+/, <SNPS> ) ) {
+    while ( <SNPS> ) {
+        my @fields = split( /\s+/ );
         my $contig_id = $contig_to_iid{ $fields[0] };
         my $start     = $fields[2];
         my $end       = $fields[3];
@@ -3118,7 +3125,8 @@ sub summarise_amosvalidate {
 
     open CE, "$amosvalidate/$ce"
       or die "Could not open $amosvalidate/$ce: $!";
-    while ( my @fields = split( /\s+/, <CE> ) ) {
+    while ( <CE> ) {
+        my @fields = split( /\s+/ );
         my $contig_id = $contig_to_iid{ $fields[0] };
         my $start     = $fields[2];
         my $end       = $fields[3];
@@ -3127,11 +3135,10 @@ sub summarise_amosvalidate {
         push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
         $results{$contig_id} = $res_arr;
     }
-    close SNPS;
+    close CE;
 
     return ( \%results );
 }
-
 ######################################################################
 #
 # merge_annotations
