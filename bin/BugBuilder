@@ -220,7 +220,7 @@ set_paths($config);
                              'platform=s'           => \$platform,
                              'prefix:s'             => \$prefix,
                              'assembler:s'          => \@assemblers,
-                             'assembler_args:s'     => \@assembler_args,
+                             'assembler-args:s'     => \@assembler_args,
                              'scaffolder:s'         => \$scaffolder,
                              'scaffolder-args:s'    => \$scaffolder_args,
                              'insert-size:s'        => \$insert_size,
