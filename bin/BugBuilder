@@ -3079,63 +3079,78 @@ sub summarise_amosvalidate {
     my ($snps)  = grep ( /snp.feat/,   @outputs );
     my ($ce)    = grep ( /ce.feat/,    @outputs );
 
-    open KMER, "$amosvalidate/$kmer"
-      or die "Could not open $amosvalidate/$kmer: $!";
-    while ( <KMER> ) {
-        my @fields = split( /\s+/ );
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = 'HIGH_KMER';
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
-    }
-    close KMER;
+    if ( $kmer ) {
 
-    open DEPTH, "$amosvalidate/$depth"
-      or die "Could not open $amosvalidate/$depth: $!";
-    while ( <DEPTH> ) {
-        my @fields = split( /\s+/ );
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = 'HIGH_COV';
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
-    }
-    close DEPTH;
+        open KMER, "$amosvalidate/$kmer"
+          or die "Could not open $amosvalidate/$kmer: $!";
+        while ( <KMER> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = 'HIGH_KMER';
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+        }
+        close KMER;
 
-    $snps or die "Extracted file name for SNPs is empty";
-    open SNPS, "$amosvalidate/$snps"
-      or die "Could not open $amosvalidate/$snps: $!";
-    while ( <SNPS> ) {
-        my @fields = split( /\s+/ );
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = 'HIGH_SNP';
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
+    }   
+
+    if ( $depth ) {
+
+        open DEPTH, "$amosvalidate/$depth"
+          or die "Could not open $amosvalidate/$depth: $!";
+        while ( <DEPTH> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = 'HIGH_COV';
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+        }
+        close DEPTH;
 
     }
-    close SNPS;
 
-    open CE, "$amosvalidate/$ce"
-      or die "Could not open $amosvalidate/$ce: $!";
-    while ( <CE> ) {
-        my @fields = split( /\s+/ );
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = $fields[4];
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
+    if ( $snps ) {
+
+        open SNPS, "$amosvalidate/$snps"
+          or die "Could not open $amosvalidate/$snps: $!";
+        while ( <SNPS> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = 'HIGH_SNP';
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+
+        }
+        close SNPS;
+
     }
-    close CE;
+
+    if ( $ce ) {
+
+        open CE, "$amosvalidate/$ce"
+          or die "Could not open $amosvalidate/$ce: $!";
+        while ( <CE> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = $fields[4];
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+        }
+        close CE;
+
+    }
 
     return ( \%results );
 }
