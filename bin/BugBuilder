@@ -112,9 +112,20 @@ stage taking a significant amount of time. Default: on
 =item B<keepall>: Return full working directory with intermediate files, rather the just returning
 the results (default off)
 
+=item B<[no-]gap-seal>: Determine whether to run Abyss sealer to close scaffold gaps. Default: on
+
 =item B<help>: display short help text
 
 =item B<man>: display full help text
+
+=item B<threads>: Number of threads to use for multi-threaded applications. Default: 1
+
+=item B<out-dir>: Path for the output directory. If not provided, will be generated under the current 
+working directory.
+
+=item B<tmp-dir>: Path for the temporary working directory. 
+If not provided, unique temporary directory will be created under the temp_dir path set in
+a config file.
 
 =back
 
@@ -158,6 +169,7 @@ use Bio::DB::Fasta;
 use Text::ASCIITable;
 use DateTime;
 use Statistics::Basic qw(:all);
+use File::Which qw(which);
 
 $|++;
 
@@ -183,6 +195,10 @@ set_paths($config);
     my $split_origin       = 1;
     my $gap_fill           = 1;
     my $gap_fill_threshold = 150;
+    my $gap_seal           = 1;
+    my $threads            = 1;
+    my $out_dir            = undef;
+    my $tmpdir             = undef;
 
     my $fastq_error = 0;
 
@@ -204,7 +220,7 @@ set_paths($config);
                              'platform=s'           => \$platform,
                              'prefix:s'             => \$prefix,
                              'assembler:s'          => \@assemblers,
-                             'assembler_args:s'     => \@assembler_args,
+                             'assembler-args:s'     => \@assembler_args,
                              'scaffolder:s'         => \$scaffolder,
                              'scaffolder-args:s'    => \$scaffolder_args,
                              'insert-size:s'        => \$insert_size,
@@ -224,9 +240,13 @@ set_paths($config);
                              'split-origin!'        => \$split_origin,
                              'gap-fill!'            => \$cmd_gap_fill,
                              'gap-fill-threshold:s' => \$gap_fill_threshold,
+                             'gap-seal!'            => \$gap_seal,
                              'keepall'              => \$keepall,
                              'help'                 => \$help,
                              'man'                  => \$man,
+                             'threads:i'             => \$threads,
+                             'out-dir:s'             => \$out_dir,
+                             'tmp-dir:s'             => \$tmpdir
                            );
     @assemblers = map { lc($_) } @assemblers;
     $scaffolder = lc($scaffolder) if ($scaffolder);
@@ -254,15 +274,19 @@ set_paths($config);
     ($species) ? ( $organism .= " $species" ) : ( $organism .= " sp." );
     ( $organism .= " $strain" ) if ($strain);
 
-    my $out_dir;
     my $dt = DateTime->now();
-    if ( $organism =~ /unknown/ ) {
-        $out_dir = "BugBuilder_" . $dt->dmy . "_" . $dt->hms('_');
+    if ( ! $out_dir ) {
+        if ( $organism =~ /unknown/ ) {
+            $out_dir = "BugBuilder_" . $dt->dmy . "_" . $dt->hms('_');
+        }
+        else {
+            $out_dir = "BugBuilder_" . $organism;
+            $out_dir =~ s/[ \-\/]_//g;
+        }
     }
-    else {
-        $out_dir = "BugBuilder_" . $organism;
-        $out_dir =~ s/[ \-\/]_//g;
-    }
+    
+    $out_dir = Cwd::abs_path($out_dir);
+
     my $log = $out_dir . ".log";
 
     my $paired = 1 if ( defined($fastq2) );
@@ -276,8 +300,7 @@ set_paths($config);
 
     my $orig_dir = cwd();
 
-    my $tmpdir_ref = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform );
-    my $tmpdir = $tmpdir_ref->dirname();
+    $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
 
     $reference = basename($reference) if ($reference);
 
@@ -360,6 +383,7 @@ set_paths($config);
     $tb->addRow( "Trim length",         $trim_length ) if ($trim_reads);
     $tb->addRow( "Split Origin",        $split_origin );
     $tb->addRow( "Gap Fill",            $gap_fill );
+    $tb->addRow( "Gap Seal",            $gap_seal );
     print "$tb\n";
 
     print "Running in $mode mode\n";
@@ -370,7 +394,6 @@ set_paths($config);
     #if we are running a single assembler we need to symlink its contig output
     # into $tmpdir - pass a $link flag to run_assembler
     $link = 1 if ( $#assemblers == 0 );
-
     for ( my $i = 0 ; $i <= $#assemblers ; $i++ ) {
         $pm->start and next();
         my $assembler = $assemblers[$i];
@@ -413,6 +436,17 @@ set_paths($config);
             }
         }
     }
+    
+    if ( -e "$tmpdir/scaffolds.fasta" && which 'abyss-sealer' ) {
+        if ($gap_seal > 0) {
+            message("Assembly Scaffold Statistics before gap sealing...");
+            get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+            run_gapsealer( $tmpdir, $encoding, $threads );
+            message("Assembly Scaffold Statistics after gap sealing...");
+            get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+        }
+    }
+
     if ( -e "$tmpdir/scaffolds.fasta" ) {
         build_agp( $tmpdir, $organism, $mode, $scaffold_type );
     }
@@ -469,7 +503,7 @@ set_paths($config);
     print "\nAnnotated features\n==================\n\n";
     print $tb, "\n";
 
-    return_results( $tmpdir, $out_dir, $orig_dir, $prefix, $keepall, $mode );
+    return_results( $tmpdir, $out_dir, $prefix, $keepall, $mode );
     chdir $orig_dir or warn "Failed to chdir:$ !";
 
     message("All done...");
@@ -526,6 +560,8 @@ sub set_paths {
       if ( $config->{'barrnap_dir'} );
     $ENV{'PATH'} = $ENV{'PATH'} . ":" . $config->{'mauve_dir'} . '/linux-x64'
       if ( $config->{'mauve_dir'} );
+    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'abyss_sealer_dir'}
+      if ( $config->{'abyss_sealer_dir'} );
 
     if ( $config->{'python_lib_path'} ) {
         if ( defined( $ENV{'PYTHONPATH'} ) ) {
@@ -687,6 +723,9 @@ sub select_tools {
 #                   $ (path to fastq2)
 #                   $ (path to longread fastq file)
 #                   $ (path to fastafile)
+#  optional params: $ (platform)
+#                   $ (preset value for tempdir)
+#                   
 #
 #  returns        : $ (path to tempdir)
 #
@@ -698,7 +737,18 @@ sub setup_tempdir {
     my $fastq2      = shift;
     my $long_fastq  = shift;
     my $fasta       = shift;
-    my $scratch_dir = $config->{'tmp_dir'};
+    my $platform    = shift;
+    my $tmpdir      = shift;
+    my $scratch_dir;
+
+    if( ! $tmpdir ) {
+        $scratch_dir = $config->{'tmp_dir'};
+        $scratch_dir = Cwd::abs_path($scratch_dir);
+    }
+    else {
+        $tmpdir = Cwd::abs_path($tmpdir);
+        $scratch_dir = dirname($tmpdir);
+    }
 
     if ( !-d $scratch_dir ) {
         my $err;
@@ -712,29 +762,36 @@ sub setup_tempdir {
             }
         }
     }
-    my $tempdir = File::Temp->newdir( DIR => $scratch_dir );
-    $tempdir->unlink_on_destroy(0);
-    print "Created working directory: " . $tempdir->dirname . "\n";
-    my $tmpdir = $tempdir->dirname;
+
+    if( ! $tmpdir ) {
+        my $tempdir = File::Temp->newdir( DIR => $scratch_dir );
+        $tempdir->unlink_on_destroy(0);
+        $tmpdir = $tempdir->dirname;
+    }
+    else {
+        ( ! -d $tmpdir ) or die "Specified working directory $tmpdir already exists";
+        mkdir($tmpdir) or die "Unable to create working directory ${tmpdir}\n";
+    }
+    print "Created working directory: ${tmpdir}\n";
 
     if ($fastq1) {
         my $basename = basename($fastq1);
-        copy( $fastq1, $tempdir->dirname() ) or die "Error copying $basename: $!";
+        copy( $fastq1, $tmpdir ) or die "Error copying $basename: $!";
     }
 
     if ($fastq2) {
         my $basename = basename($fastq2);
-        copy( $fastq2, $tempdir->dirname() ) or die "Error copying $basename: $!";
+        copy( $fastq2, $tmpdir ) or die "Error copying $basename: $!";
     }
 
     if ($long_fastq) {
         my $basename = basename($long_fastq);
-        copy( $long_fastq, $tempdir->dirname() ) or die "Error copying $basename: $!";
+        copy( $long_fastq, $tmpdir ) or die "Error copying $basename: $!";
     }
 
     if ($fasta) {
         my $basename = basename($fasta);
-        copy( $fasta, $tempdir->dirname() )
+        copy( $fasta, $tmpdir )
           or die "Error copying $basename: $!";
     }
 
@@ -809,7 +866,7 @@ sub setup_tempdir {
           or die "Error  symlinking $fasta: $!";
     }
 
-    return $tempdir;
+    return $tmpdir;
 
 }
 
@@ -834,13 +891,12 @@ sub return_results {
 
     my $tmpdir       = shift;
     my $dir          = shift;
-    my $original_dir = shift;
     my $prefix       = shift;
     my $dircopy      = shift;
     my $mode         = shift;
 
     if ($dircopy) {
-        dircopy( $tmpdir, "$original_dir/$dir" )
+        dircopy( $tmpdir, "$dir" )
           or die "Error copying $tmpdir: $!";
     }
     else {
@@ -858,16 +914,16 @@ sub return_results {
             push @files, @found;
         }
 
-        mkdir "$original_dir/$dir"
-          or die "Error creating $original_dir/$dir: $!";
+        mkdir "$dir"
+          or die "Error creating $dir: $!";
 
         foreach my $file (@files) {
             my $outfile;
             if ($prefix) {
-                $outfile = "$original_dir/$dir/${prefix}_${file}";
+                $outfile = "$dir/${prefix}_${file}";
             }
             else {
-                $outfile = "$original_dir/$dir/$file";
+                $outfile = "$dir/$file";
             }
             my $target;
             if ( -l "$tmpdir/$file" ) {
@@ -883,16 +939,14 @@ sub return_results {
         if ( $mode eq 'draft' ) {
             my $outfile;
             if ($prefix) {
-                $outfile = "$original_dir/$dir/${prefix}_assembly.bnk";
+                $outfile = "$dir/${prefix}_assembly.bnk";
             }
             else {
-                $outfile = "$original_dir/$dir/assembly.bnk";
+                $outfile = "$dir/assembly.bnk";
             }
             dircopy( "$tmpdir/amos/assembly.bnk", "$outfile" )
-              or die "Error coying $tmpdir/amos/assembly.bnk: $!";
+              or die "Error copying $tmpdir/amos/assembly.bnk: $!";
         }
-
-        chdir $original_dir or die "Could not chdir to $original_dir: $!";
 
     }
 
@@ -1316,8 +1370,8 @@ sub downsample_reads {
       or die " Error unlinking $tmpdir/read1.fastq : $! ";
     symlink( "downsampling/read1.fastq", "read1.fastq" )
       or die " Error creating read1.fastq symlink : $! ";
-    if ( -e "$tmpdir/read2.fastq " ) {
-        unlink("$tmpdir/read2.fastq ")
+    if ( -e "$tmpdir/read2.fastq" ) {
+        unlink("$tmpdir/read2.fastq")
           or die "Error unlinking $tmpdir/read2.fastq: $! ";
         symlink( "downsampling/read2.fastq", "read2.fastq" )
           or die " Error creating read2.fastq symlink: $! ";
@@ -1423,7 +1477,7 @@ sub run_assembler {
     get_contig_stats( "$contig_output", 'contigs' );
 
     # Only generate scaffold stats for paired read alignments...
-    get_contig_stats( "$scaffold_output ", 'scaffolds' )
+    get_contig_stats( "$scaffold_output", 'scaffolds' )
       if ( $scaffold_output && -e $scaffold_output && -e "$tmpdir/read2.fastq" );
 
     # rename contigs/scaffolds for consistent naming, since we need to retrieve by
@@ -1436,7 +1490,7 @@ sub run_assembler {
     my $inIO = Bio::SeqIO->new( -format => 'fasta', -file => $contig_output );
     my $outIO =
       Bio::SeqIO->new( -format => 'fasta',
-                       -file   => " >BugBuilder.contigs.fasta" );
+                       -file   => ">BugBuilder.contigs.fasta" );
     my $contig_count = 0;
     while ( my $seq = $inIO->next_seq() ) {
         my $contig_id = sprintf( "contig_%06s", ++$contig_count );
@@ -1496,8 +1550,8 @@ sub merge_assemblies {
 
     message("Merging assemblies...");
 
-    mkdir "$tmpdir/minimus"    or die " Error creating $tmpdir/ minimus          : $! ";
-    chdir "$tmpdir / minimus " or die " Error running chdir $tmpdir / minimus : $! ";
+    mkdir "$tmpdir/minimus"    or die " Error creating $tmpdir/minimus          : $! ";
+    chdir "$tmpdir/minimus" or die " Error running chdir $tmpdir/minimus : $! ";
 
     my $assemblers = $config->{'assemblers'};
     foreach my $assembler (@$assemblers) {
@@ -1505,27 +1559,27 @@ sub merge_assemblies {
         my $contig_output = $assembler->{'contig_output'};
         $contig_output =~ s/__TMPDIR__/$tmpdir/;
 
-        symlink( $contig_output, "$name . seq " )
-          or die " Could not symlink $contig_output->$name . seq : $! ";
+        symlink( $contig_output, "$name.seq" )
+          or die " Could not symlink $contig_output->$name.seq : $! ";
 
     }
 
     my $cmd = $config->{'amos_dir'}
-      . " bin / tarchive2amos -o merged spades . seq abyss . seq > $tmpdir / minimus / tarchive2amos . log 2 > &1 ";
+      . "bin/tarchive2amos -o merged spades.seq abyss.seq > $tmpdir/minimus/tarchive2amos.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
     my $count = `grep -c '>' $tmpdir/spades/contigs.fasta`;
     chomp $count;
 
-    $cmd = $config->{'amos_dir'} . " bin / minimus2 merged -D REFCOUNT = $count > /dev/ null 2 > &1 ";
+    $cmd = $config->{'amos_dir'} . "bin/minimus2 merged -D REFCOUNT=$count > /dev/null 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
-    $cmd = " cat merged . singletons . seq >> merged . fasta ";
+    $cmd = "cat merged.singletons.seq >> merged.fasta";
     system($cmd) == 0 or die " Error running $cmd";
 
     # some contigs ids can end up non-unique, so need to renumber these
     my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => 'merged.fasta' );
-    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => " > renumbered . fasta " );
+    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">renumbered.fasta" );
     my $i     = 0;
     while ( my $seq = $inIO->next_seq() ) {
         $seq->id( ++$i );
@@ -1533,11 +1587,11 @@ sub merge_assemblies {
     }
 
     chdir $tmpdir or die " Error chdiring to $tmpdir: $! ";
-    symlink( " minimus / renumbered . fasta ", " contigs . fasta " )
+    symlink( "minimus/renumbered.fasta", "contigs.fasta" )
       or die " Error creating symlink : $! ";
 
     print " Merged assembly statistics : \n == == == == == == == == == == == == == == \n ";
-    get_contig_stats( "$tmpdir / minimus / renumbered . fasta ", 'contigs' );
+    get_contig_stats( "$tmpdir/minimus/renumbered.fasta", 'contigs' );
 
     return (0);
 
@@ -1621,8 +1675,8 @@ sub align_reads {
         if ( !-e "$tmpdir/read2.fastq" ) {
 
             # single-ended long reads
-            $cmd = "$bwa_dir/bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $reference.sam"
-              . "2 > $tmpdir/bwa/bwa_mem.log";
+            $cmd = "$bwa_dir/bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $reference.sam "
+              . "2>$tmpdir/bwa/bwa_mem.log";
             system($cmd) == 0 or die "Error running $cmd: $!";
         }
         else {
@@ -1639,7 +1693,7 @@ sub align_reads {
       . "|$samtools_dir/samtools sort - $tmpdir/bwa/$reference";
     system($cmd) == 0 or die "Error running $cmd";
 
-    $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2> $tmpdir/bwa/samtools_index.log";
+    $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
     system($cmd) == 0                 or die "Error running $cmd";
     unlink("$tmpdir/bwa/read1.fastq") or die " Error unlinking $tmpdir/bwa/read1.fastq: $! ";
     unlink("$tmpdir/bwa/read2.fastq")
@@ -1747,7 +1801,7 @@ sub run_scaffolder {
     message(" Starting $scaffolder");
 
     my ( $cmd, $scaffold_output, $unscaffolded_output, $create, $linkage_evidence, $default_args );
-    my $blast_dir = $config->{'blast_dir'} . '/bin/';
+    my $blast_dir = $config->{'blast_dir'};
 
     my $scaffolders = $config->{'scaffolders'};
     foreach my $conf_scaffolder (@$scaffolders) {
@@ -1793,7 +1847,7 @@ sub run_scaffolder {
             # blast indexing doesn't produce a workable index from a symlink, so need to copy the reference sequences
             copy( $reference, "$run_dir/reference.fasta" )
               or die "Error copying reference.fasta:$! ";
-            symlink( "$tmpdir/contigs.fasta", "$run_dir/contigs.fasta" );
+            symlink( "$contigs", "$run_dir/contigs.fasta" );
             my $fasta_db = Bio::DB::Fasta->new("$run_dir/contigs.fasta");
 
             my $blast_cmd =
@@ -1857,11 +1911,14 @@ sub run_scaffolder {
         # Now run the selecting scaffolder on each set of reference and contigs...
         foreach my $ref_id (@ref_ids) {
 
+            my $scaff_contigs = "reference_${ref_id}_contigs";
+            # Only if anything mapped to this reference
+            next unless ( -e "${run_dir}/${scaff_contigs}" );
+            
             print "\nScaffolding vs. $ref_id\n";
 
             my $exec_cmd      = $cmd;
             my $reference     = "reference_${ref_id}";
-            my $scaff_contigs = "reference_${ref_id}_contigs";
 
             my @replace = ( $cmd, $scaffold_output );
             foreach ( $exec_cmd, $scaffold_output ) {
@@ -1907,7 +1964,7 @@ sub run_scaffolder {
             #symlink( "$run_dir/reference_${ref_ids[0]}_contigs", "$run_dir/${scaffolder}_${ref_id}/$contigs" )
             #or die "Error linking $contigs:$! ";
 
-            system($exec_cmd) == 0 or die "Error executing $exec_cmd:$!";
+            system("$exec_cmd") == 0 or die "Error executing $exec_cmd:$!";
             my $scaffIO =
               Bio::SeqIO->new( -format => 'fasta', -file => "$run_dir/${scaffolder}_${ref_id}/scaffolds.fasta" )
               or die "Error opening $run_dir/${scaffolder}_${ref_id}/scaffolds.fasta: $!";
@@ -1920,7 +1977,11 @@ sub run_scaffolder {
     else {    #non reference-guided scaffolding....
 
         my $exec_cmd = $cmd;
-
+        # A kludge to work when tmpdir is not the top run dir - needed
+        # because align_reads concatenates path from tmpdir and contigs.fasta
+        if( ! -e "$tmpdir/contigs.fasta" ) {
+            symlink( $contigs, "$tmpdir/contigs.fasta" );
+        }
         # if no reference provided we won't have an estimate of insert size,
         # so need to get this by read alignment vs the assembly.
         if ( !$insert_size ) {
@@ -2061,7 +2122,7 @@ sub run_gapfiller {
 
     my $scaffIO = Bio::SeqIO->new( -file => "$tmpdir/scaffolds.fasta", -format => 'fasta' );
     my $filledScaffOutIO =
-      Bio::SeqIO->new( -file => " >$tmpdir/GapFiller/GapFiller.scaffolds.fasta", -format => 'fasta' );
+      Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/GapFiller.scaffolds.fasta", -format => 'fasta' );
     my $contigOutIO = Bio::SeqIO->new( -file => ">$tmpdir/GapFiller/GapFiller.contigs.fasta", -format => 'fasta' );
 
     my $i = 0;
@@ -2111,6 +2172,78 @@ sub run_gapfiller {
 
 ######################################################################
 #
+# run_gapsealer
+#
+# Runs abyss-sealer on scaffolded assembly
+#
+# required params: $ (tmpdir)
+#
+# returns        : 0
+#
+######################################################################
+
+sub run_gapsealer {
+
+    my $tmpdir = shift;
+    my $encoding = shift;
+    my $threads = shift;
+
+    message("Starting gap sealer...");
+
+    mkdir "$tmpdir/gapsealer" or die "Error creating $tmpdir/gapsealer: $! ";
+    chdir "$tmpdir/gapsealer" or die "Error running chdir $tmpdir/gapsealer: $! ";
+
+    my $filled_prefix = "gap_sealed";
+
+    # First, try to use reads error-corrected by Spades if they exits
+    my @reads = glob("$tmpdir/spades/corrected/*.cor.fastq.gz");
+    if (!@reads) {
+        # Otherwise, use the input reads and rely on error-correction built into abyss-sealer
+        @reads = glob("$tmpdir/read[0-9].fastq");
+    }
+
+    @reads or die "Read files not found\n";
+
+    my $enc_opt = '--standard-quality';
+    if ( $encoding ne 'sanger' ) {
+        $enc_opt = '--illumina-quality';
+    }
+    # --no-trim-masked is critical. Contrary to --help output, trimming of
+    # lower case nucleotides is the default in version 1.9.0, and everything is lower case after
+    # the contig orientation step, except for the Ns.
+    my $cmd = "abyss-sealer --no-trim-masked -k95 -k90 -k80 -P 10 -j $threads $enc_opt -o $filled_prefix -S $tmpdir/scaffolds.fasta " . join(" ",@reads);
+
+    (system($cmd) == 0) or die "Error running abyss-sealer";
+
+    my $filledIO = Bio::SeqIO->new( -file => "${filled_prefix}_scaffold.fa", -format => 'fasta' );
+    my $filledScaffOutIO =
+      Bio::SeqIO->new( -file => ">gapsealer.scaffolds.fasta", -format => 'fasta' );
+
+    while ( my $filled_scaff = $filledIO->next_seq() ) {
+
+        # expand gaps of a single N to 100 Ns as per convention for unknown gap sizes,
+        # since these are probably the 1 base remaining following gap closure...
+        my $scaff_seq = $filled_scaff->seq();
+        my $gap       = 'N' x 100;
+
+        $scaff_seq =~ s/N+/$gap/g;
+        $filled_scaff->seq($scaff_seq);
+        $filledScaffOutIO->write_seq($filled_scaff);
+    }
+
+    chdir "$tmpdir" or die "Error chdiring: $! ";
+
+    unlink "scaffolds.fasta"
+      or warn "Error removing scaffolds.fasta : $! ";
+    symlink( "gapsealer/gapsealer.scaffolds.fasta", "scaffolds.fasta" )
+      or die "Error creating symlink: $! ";
+
+    return ();
+
+}
+
+######################################################################
+#
 # build_agp
 #
 # Creates an AGP file from the scaffolds, while generating new
@@ -2146,7 +2279,7 @@ sub build_agp {
     mkdir "$tmpdir/agp" or die "Error creating agp dir: $!";
     chdir "$tmpdir/agp" or die "Error chdiring to $tmpdir/agp: $!";
 
-    open AGP, ">scaffolds.agp "
+    open AGP, ">scaffolds.agp"
       or die "Error opening scaffolds.agp for writing: $! ";
     print AGP "##agp-version 2.0\n";
     print AGP "#$organism\n";
@@ -2355,10 +2488,10 @@ sub run_prokka {
     #use scaffolds if we have them, otherwise contigs....
     my $seqs;
     if ( -e "$tmpdir/scaffolds.fasta" ) {
-        $seqs = "$tmpdir/scaffolds.fasta ";
+        $seqs = "$tmpdir/scaffolds.fasta";
     }
     else {
-        $seqs = "$tmpdir/contigs.fasta ";
+        $seqs = "$tmpdir/contigs.fasta";
     }
 
     #my $prokka_dir;
@@ -2389,9 +2522,40 @@ sub run_prokka {
     open TMP, "$tmpdir/prokka/prokka.tmp" or die "Error opening prokka.tmp:$!";
     open EMBL, ">$tmpdir/prokka/prokka.embl"
       or die "Error opening prokka.embl: $!";
+    my $sq_unwrapped='';
     while (<TMP>) {
         s/contig/scaffold_/;
-        print EMBL;
+        # There is an apparent bug in asn2gb (tested on v.16.6) where it wraps long
+        # SQ lines into multiple SQ lines:
+        ###
+        #XX
+        #SQ   Sequence 5492994 BP; 1170678 A; 1564111 C; 1566474 G; 1170531 T; 21200
+        #SQ   other;
+        #     gtggtctgcc tcgcataaag cggtatgaaa atggattgaa gcccgggccg tggattctac        60
+        ###
+        # Bioperl EMBL parser (master branch of 2016-07-19) expects a single SQ line, and
+        # reads SQ line that follows as part of the sequence. This results in a corrupt
+        # sequence after the annotation_merge step.
+        # The official standard only speaks about a single SQ line per entry:
+        # ftp://ftp.ebi.ac.uk/pub/databases/ena/sequence/release/doc/usrman.txt
+        # We join such wrapped SQ lines back into one line.
+        if (/^SQ/) {
+           if ($sq_unwrapped eq '') {
+               $sq_unwrapped = 'SQ';
+           }
+           $sq_unwrapped .= s/^SQ//;
+        }
+        else {
+            if ($sq_unwrapped ne '') {
+                print EMBL $sq_unwrapped;
+                $sq_unwrapped = '';
+            }
+            print EMBL;
+        }
+    }
+    if ($sq_unwrapped ne '') {
+        print EMBL $sq_unwrapped;
+        $sq_unwrapped = '';
     }
     close EMBL;
     close TMP;
@@ -2458,7 +2622,7 @@ sub amosvalidate {
     message("Converting to amos bank...");
     my $cmd = $config->{'sam2afg'};
     $cmd .= " -m $insert_size -s $insert_stddev " if ( $insert_size && $insert_stddev );
-    $cmd .= "$tmpdir/amos/${seq_file} $tmpdir/bwa/${seq_file}.sam";
+    $cmd .= " $tmpdir/amos/${seq_file} $tmpdir/bwa/${seq_file}.sam";
     $cmd .= " > amos.afg";
 
     system($cmd) == 0 or die "Error executing $cmd: $!";
@@ -2883,11 +3047,13 @@ sub get_contig_to_iid_mapping {
 #
 ######################################################################
 
+
 sub summarise_amosvalidate {
 
     my $tmpdir = shift;
-
+    
     message("processing amosvalidate results...");
+
     my $amosvalidate = $tmpdir . "/amos";
     my $iid_mapping  = $tmpdir . "/amos/ctg_to_iid.txt";
     my %results;
@@ -2895,7 +3061,8 @@ sub summarise_amosvalidate {
     # Read Contig->iid mapping into a hash
     my %contig_to_iid;
     open IID, $iid_mapping or die "Error opening $iid_mapping: $!";
-    while ( my ( $contig, $iid ) = split( /\s+/, <IID> ) ) {
+    while (<IID>) {
+        my ( $contig, $iid ) = split( /\s+/ );
         chomp $iid;
         $contig_to_iid{$iid} = $contig;
         $results{$contig}    = [];
@@ -2912,62 +3079,81 @@ sub summarise_amosvalidate {
     my ($snps)  = grep ( /snp.feat/,   @outputs );
     my ($ce)    = grep ( /ce.feat/,    @outputs );
 
-    open KMER, "$amosvalidate/$kmer"
-      or die "Could not open $amosvalidate/$kmer: $!";
-    while ( my @fields = split( /\s+/, <KMER> ) ) {
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = 'HIGH_KMER';
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
-    }
-    close KMER;
+    if ( $kmer ) {
 
-    open DEPTH, "$amosvalidate/$depth"
-      or die "Could not open $amosvalidate/$depth: $!";
-    while ( my @fields = split( /\s+/, <DEPTH> ) ) {
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = 'HIGH_COV';
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
-    }
-    close DEPTH;
+        open KMER, "$amosvalidate/$kmer"
+          or die "Could not open $amosvalidate/$kmer: $!";
+        while ( <KMER> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = 'HIGH_KMER';
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+        }
+        close KMER;
 
-    open SNPS, "$amosvalidate/$snps"
-      or die "Could not open $amosvalidate/$snps: $!";
-    while ( my @fields = split( /\s+/, <SNPS> ) ) {
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = 'HIGH_SNP';
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
+    }   
+
+    if ( $depth ) {
+
+        open DEPTH, "$amosvalidate/$depth"
+          or die "Could not open $amosvalidate/$depth: $!";
+        while ( <DEPTH> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = 'HIGH_COV';
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+        }
+        close DEPTH;
 
     }
-    close SNPS;
 
-    open CE, "$amosvalidate/$ce"
-      or die "Could not open $amosvalidate/$ce: $!";
-    while ( my @fields = split( /\s+/, <CE> ) ) {
-        my $contig_id = $contig_to_iid{ $fields[0] };
-        my $start     = $fields[2];
-        my $end       = $fields[3];
-        my $type      = $fields[4];
-        my $res_arr   = $results{$contig_id};
-        push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
-        $results{$contig_id} = $res_arr;
+    if ( $snps ) {
+
+        open SNPS, "$amosvalidate/$snps"
+          or die "Could not open $amosvalidate/$snps: $!";
+        while ( <SNPS> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = 'HIGH_SNP';
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+
+        }
+        close SNPS;
+
     }
-    close SNPS;
+
+    if ( $ce ) {
+
+        open CE, "$amosvalidate/$ce"
+          or die "Could not open $amosvalidate/$ce: $!";
+        while ( <CE> ) {
+            my @fields = split( /\s+/ );
+            my $contig_id = $contig_to_iid{ $fields[0] };
+            my $start     = $fields[2];
+            my $end       = $fields[3];
+            my $type      = $fields[4];
+            my $res_arr   = $results{$contig_id};
+            push @$res_arr, { 'start' => $start, 'end' => $end, type => $type };
+            $results{$contig_id} = $res_arr;
+        }
+        close CE;
+
+    }
 
     return ( \%results );
 }
-
 ######################################################################
 #
 # merge_annotations
@@ -3154,10 +3340,10 @@ sub run_circleator {
     }
 
     my $cmd = "$circleator --config circleator.cfg --pad=200 --data $embl > circleator.svg 2> circleator.log";
-    system($cmd) == 0 or die "Error running $cmd: $!";
+    system("$cmd") == 0 or die "Error running $cmd: $!";
 
     $cmd = "$java -Djava.awt.headless=true -jar $batik_jar -m image/png -d . circleator.svg 1>&2 > rasterizer.log";
-    system($cmd) == 0 or die "Error running $cmd: $!";
+    system("$cmd") == 0 or die "Error running $cmd: $!";
 
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
     symlink( "circleator/circleator.svg", "circleator.svg" ) or die "Error creating symlink: $!";
