@@ -2324,7 +2324,7 @@ sub build_agp {
                     $gap_start = undef;
                     next BASE;
                 }
-                elsif ( ( $mode eq 'draft' ) && ( $gap_length <= 100 ) ) {
+                elsif ( ( $mode eq 'draft' ) && ( $gap_length <= 1 ) ) {
 
                     # we can leave single ambiguous bases alone
                     $gap_start = undef;
