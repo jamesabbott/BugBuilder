@@ -66,6 +66,8 @@ assemblers are specified.
 =item B<scaffolder-args>: Any additional arguments to pass to the scaffolder. Overides the setting
 of the 'default_args' setting in the scaffolder configuration
 
+=item B<merge-method>: Assembly merging tool to use
+
 =item B<insert-size>: Size of insert in paired-read library. This will be determined empircally if a reference
 genome sequence is provided, so only needs specifying when assembling paired-read sequences for
 which no reference genome is available.
@@ -178,10 +180,10 @@ set_paths($config);
 
 {
     my (
-         $help,       $man,         $reference,      $fastq1,      $fastq2,
-         $long_fastq, @assemblers,  @assembler_args, $scaffolder,  $scaffolder_args,
-         $platform,   $insert_size, $stddev,         $genome_size, $downsample,
-         $locustag,   $centre,      $keepall,        $prefix,      $cmd_gap_fill,
+         $help,       $man,            $reference,  $fastq1,          $fastq2,   $long_fastq,
+         @assemblers, @assembler_args, $scaffolder, $scaffolder_args, $platform, $insert_size,
+         $stddev,     $genome_size,    $downsample, $locustag,        $centre,   $keepall,
+         $prefix,     $cmd_gap_fill,   $merge_method,
        );
 
     my $mode               = 'submission';
@@ -223,6 +225,7 @@ set_paths($config);
                              'assembler-args:s'     => \@assembler_args,
                              'scaffolder:s'         => \$scaffolder,
                              'scaffolder-args:s'    => \$scaffolder_args,
+                             'merge-method:s'       => \$merge_method,
                              'insert-size:s'        => \$insert_size,
                              'insert-stddev:s'      => \$stddev,
                              'genome-size:s'        => \$genome_size,
@@ -300,7 +303,8 @@ set_paths($config);
 
     my $orig_dir = cwd();
 
-    $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
+    #    $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
+    $tmpdir = "/scratch/BugBuilder/NSxh62IVsF/";
 
     $reference = basename($reference) if ($reference);
 
@@ -314,8 +318,8 @@ set_paths($config);
     die "\nPlease supply a genome size or reference sequence when running a long-read assembly"
       if ( $type eq 'long' && ( !$genome_size && !$reference ) );
 
-    my ( $sel_assemblers, $sel_scaffolder ) =
-      select_tools( $config, \@assemblers, $scaffolder, $paired, $reference, $type, $mean_read_length );
+    my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method ) =
+      select_tools( $config, \@assemblers, $scaffolder, $merge_method, $paired, $reference, $type, $mean_read_length );
     @assemblers = @$sel_assemblers;
     $scaffolder = $sel_scaffolder;
 
@@ -328,15 +332,15 @@ set_paths($config);
         }
     }
 
-    run_fastqc( $tmpdir, $type ) if ($run_fastqc);
+    #    run_fastqc( $tmpdir, $type ) if ($run_fastqc);
 
     if ( $mean_read_length && ( $mean_read_length < 50 || $mean_read_length < $trim_length ) ) {
         $trim_length = 25;
         print "\ntrim-length reset to $trim_length due to mean read length ($mean_read_length)\n";
     }
 
-    quality_trim_reads( $tmpdir, $encoding, $trim_qv, $trim_length )
-      unless ( $type eq 'long' || !$trim_reads );
+    #    quality_trim_reads( $tmpdir, $encoding, $trim_qv, $trim_length )
+    #      unless ( $type eq 'long' || !$trim_reads );
 
     my $downsampled_coverage;
 
@@ -400,17 +404,17 @@ set_paths($config);
         my $assembler = $assemblers[$i];
         my $args      = $assembler_args[$i];
 
-        run_assembler(
-                       $tmpdir,   $assembler,        $reference,   $args,
-                       $link,     $type,             $encoding,    $genome_size,
-                       $platform, $mean_read_length, $insert_size, $stddev
-                     );
+        #        run_assembler(
+        #                       $tmpdir,   $assembler,        $reference,   $args,
+        #                       $link,     $type,             $encoding,    $genome_size,
+        #                       $platform, $mean_read_length, $insert_size, $stddev
+        #                     );
 
         #$pm->finish();
     }
 
     #$pm->wait_all_children;
-    merge_assemblies($tmpdir) if ( $#assemblers == 1 );
+    merge_assemblies( $tmpdir, \@assemblers, $sel_merge_method ) if ( $#assemblers == 1 );
 
     my $scaffold_type = 'paired-ends'
       ;    #used to set linkage evidence in agp file, default to method used by assemblers in case no scaffolding run
@@ -606,6 +610,7 @@ sub set_paths {
 # required params: $ ($config hash ref)
 #                  $ (arrayref of requested assemblers)
 #                  $ (name of requested scaffolder)
+#                  $ (name of requested merge tool)
 #                  $ (paired - flag to indicate we are using paired reads
 #                  $ (reference - indicates a reference has been provided)
 #                  $ (type - category of sequence i.e. short_illumina)
@@ -621,6 +626,7 @@ sub select_tools {
     my $config      = shift;
     my $assemblers  = shift;
     my $scaffolder  = shift;
+    my $merger      = shift;
     my $paired      = shift;
     my $reference   = shift;
     my $type        = shift;
@@ -631,7 +637,6 @@ sub select_tools {
 
     # sanity check assemblers where these have been manually requested...
     if ( $#assemblers > -1 ) {
-
         my @available_assemblers = map { $_->{'name'} } @{ $config->{'assemblers'} };
 
         # first off, are the requested assemblers available
@@ -675,6 +680,7 @@ sub select_tools {
         die "No valid assembler could be found" if ( $#assemblers == -1 );
     }
 
+    # the scaffolder...
     # and the scaffolder...
     my @available_scaffolders = map { $_->[0] }
       sort { $a->[1] <=> $b->[1] }
@@ -700,31 +706,25 @@ sub select_tools {
         }
     }
 
-    #    # Change of plan - let's not select a scaffolder by default, since not scaffolding is the most
-    #    # conservative option
-    #    else {
-    #
-    #
-    #        # If no scaffolder is requested, we need to select one based on the 'assembly_type' from the
-    #        # configuration file, with order-based priority
-    #        my $scaffolders = $config->{'scaffolders'};
-    #        foreach my $category ( @{ $config->{'assembler_categories'} } ) {
-    #            if ( $category->{'name'} eq $type ) {
-    #
-    #              SCAFFOLDER: foreach my $scaff (@$scaffolders) {
-    #                    if ($reference) {
-    #                        next SCAFFOLDER unless ( $scaff->{'linkage_evidence'} =~ /align/ );
-    #                    }
-    #                    $scaffolder = $scaff->{'name'};
-    #                    last SCAFFOLDER;
-    #                }
-    #
-    #        #                }
-    #    }
-    #}
-    #}
+    my @available_mergers = map { $_->[0] }
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'merge_tools'} };
 
-    return ( \@assemblers, $scaffolder );
+    if ($merger) {
+        unless ( grep ( /^$merger$/i, @available_mergers ) ) {
+            die "\nError: $merger is not a valid merge-tool\n\n" . "The following tools are configured: ",
+              join( ", ", @available_mergers ), "\n\n";
+        }
+        my $conf_mergers = $config->{'merge_tools'};
+        foreach my $conf_merger (@$conf_mergers) {
+            my $name = lc( $conf_merger->{'name'} );
+            if ( $name eq $merger ) {
+                undef($scaffolder) if $conf_merger->{'allow_scaffolding'} == 0;
+            }
+        }
+    }
+
+    return ( \@assemblers, $scaffolder, $merger );
 
 }
 
@@ -991,7 +991,7 @@ sub run_fastqc {
     my $type   = shift;
 
     message("Running FastQC...");
-    chdir $tmpdir          or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
     mkdir "$tmpdir/fastqc" or die "Error creating $tmpdir/fastqc: $!";
 
     my $fastq1     = readlink("$tmpdir/read1.fastq");
@@ -1004,7 +1004,7 @@ sub run_fastqc {
     $cmd .= " $tmpdir/$long_fastq" if ($long_fastq);
     $cmd .= " >$tmpdir/fastqc/fastqc.log 2>&1";
 
-    system($cmd) == 0      or die "Error running command $cmd: $!";
+    system($cmd) == 0 or die "Error running command $cmd: $!";
     chdir "$tmpdir/fastqc" or die "Error chdiring to $tmpdir/fastqc: $!";
 
     my $fail = 0;
@@ -1378,7 +1378,7 @@ sub downsample_reads {
 
     my $seqtk_dir = $config->{'seqtk_dir'};
     mkdir "$tmpdir/downsampling" or die "Error creating  $tmpdir/downsampling: $!";
-    chdir "$tmpdir/"             or die "Error chdiring to $tmpdir/ downsampling : $! ";
+    chdir "$tmpdir/" or die "Error chdiring to $tmpdir/ downsampling : $! ";
     print "Projected Coverage: ${orig_coverage}x: Downsampling reads to ${coverage}x...\n";
     foreach my $fastq (qw(read1.fastq read2.fastq)) {
         if ( -e "$tmpdir/$fastq" ) {
@@ -1569,9 +1569,11 @@ sub run_assembler {
 #
 # merge_assemblies
 #
-# combines spades and abyss assemblies using minimus2
+# combines two assemblies using the selected merge-method
 #
 # required params: $ (tmpdir)
+#                  $ (arrayref of assemblers used)
+#                  $ (method)
 #
 # returns        : $ (0)
 #
@@ -1579,55 +1581,42 @@ sub run_assembler {
 
 sub merge_assemblies {
 
-    my $tmpdir = shift;
+    my $tmpdir     = shift;
+    my $assemblers = shift;
+    my $method     = shift;
 
-    message("Merging assemblies...");
+    message("Merging assemblies ($method)...");
 
-    mkdir "$tmpdir/minimus" or die " Error creating $tmpdir/minimus          : $! ";
-    chdir "$tmpdir/minimus" or die " Error running chdir $tmpdir/minimus : $! ";
+    my ( $cmd, $create_dir, $contig_output );
+    my $merge_tools = $config->{'merge_tools'};
+    foreach my $tool (@$merge_tools) {
+        my $name = $tool->{'name'};
+        if ( $name eq $method ) {
+            $cmd           = $tool->{'command'};
+            $create_dir    = $tool->{'create_dir'};
+            $contig_output = $tool->{'contig_output'};
+        }
+        if ($create_dir) {
+            mkdir "$tmpdir/$method" or die "Error creating $tmpdir/$method: $! ";
+            chdir "$tmpdir/$method" or die "Error chdiring to $tmpdir/$method: $!";
+        }
 
-    my $assemblers = $config->{'assemblers'};
-    foreach my $assembler (@$assemblers) {
-        my $name          = $assembler->{'name'};
-        my $contig_output = $assembler->{'contig_output'};
-        $contig_output =~ s/__TMPDIR__/$tmpdir/;
+        $cmd =~ s/__BUGBUILDER_BIN__/$FindBin::Bin/;
+        $cmd =~ s/__TMPDIR__/$tmpdir/;
+        $cmd =~ s/__ASSEMB1__/$assemblers->[0]/;
+        $cmd =~ s/__ASSEMB2__/$assemblers->[1]/;
 
-        symlink( $contig_output, "$name.seq" )
-          or die " Could not symlink $contig_output->$name.seq : $! ";
+        system($cmd) == 0 or die "Error running $cmd: $!";
+        chdir $tmpdir or die " Error chdiring to $tmpdir: $! ";
+        symlink( "$method/$contig_output", "contigs.fasta" )
+          or die " Error creating symlink : $! ";
+
+        print "Merged assembly statistics : \n============================\n";
+        get_contig_stats( "$tmpdir/$method/$contig_output", 'contigs' );
+
+        return (0);
 
     }
-
-    my $cmd = $config->{'amos_dir'}
-      . "bin/tarchive2amos -o merged spades.seq abyss.seq > $tmpdir/minimus/tarchive2amos.log 2>&1";
-    system($cmd) == 0 or die " Error running $cmd";
-
-    my $count = `grep -c '>' $tmpdir/spades/contigs.fasta`;
-    chomp $count;
-
-    $cmd = $config->{'amos_dir'} . "bin/minimus2 merged -D REFCOUNT=$count > /dev/null 2>&1";
-    system($cmd) == 0 or die " Error running $cmd";
-
-    $cmd = "cat merged.singletons.seq >> merged.fasta";
-    system($cmd) == 0 or die " Error running $cmd";
-
-    # some contigs ids can end up non-unique, so need to renumber these
-    my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => 'merged.fasta' );
-    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">renumbered.fasta" );
-    my $i     = 0;
-    while ( my $seq = $inIO->next_seq() ) {
-        $seq->id( ++$i );
-        $outIO->write_seq($seq);
-    }
-
-    chdir $tmpdir or die " Error chdiring to $tmpdir: $! ";
-    symlink( "minimus/renumbered.fasta", "contigs.fasta" )
-      or die " Error creating symlink : $! ";
-
-    print " Merged assembly statistics : \n == == == == == == == == == == == == == == \n ";
-    get_contig_stats( "$tmpdir/minimus/renumbered.fasta", 'contigs' );
-
-    return (0);
-
 }
 
 ######################################################################
@@ -1727,7 +1716,7 @@ sub align_reads {
     system($cmd) == 0 or die "Error running $cmd";
 
     $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
-    system($cmd) == 0                 or die "Error running $cmd";
+    system($cmd) == 0 or die "Error running $cmd";
     unlink("$tmpdir/bwa/read1.fastq") or die " Error unlinking $tmpdir/bwa/read1.fastq: $! ";
     unlink("$tmpdir/bwa/read2.fastq")
       or die " Error unlinking $tmpdir/bwa/read1.fastq : $! "
@@ -2482,7 +2471,7 @@ sub build_agp {
         }
     }
 
-    close AGP     or warn "Error closring $tmpdir/scaffolds.agp: $!";
+    close AGP or warn "Error closring $tmpdir/scaffolds.agp: $!";
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
 
     unlink "scaffolds.fasta" or die "Error removing scaffolds.fasta: $!";
@@ -2737,7 +2726,7 @@ sub find_origin {
       SCAFFOLD: while ( my $scaffold = $io->next_seq() ) {
             my ( $ori_scaffold, $pos ) = split( /:/, $origin );
             if ( $ori_scaffold eq $scaffold->display_id() ) {
-                my $part_a = $scaffold->subseq( 1, $pos );
+                my $part_a = $scaffold->subseq( 1,        $pos );
                 my $part_b = $scaffold->subseq( $pos + 1, $scaffold->length() );
                 my $ori_a = Bio::Seq->new( -display_id => $scaffold->display_id . "_A", -seq => $part_a );
                 my $ori_b = Bio::Seq->new( -display_id => $scaffold->display_id . "_B", -seq => $part_b );
@@ -2773,7 +2762,7 @@ sub find_origin {
             $outIO->write_seq($seq);
         }
 
-        chdir $tmpdir                     or die "Error changing to $tmpdir: $!";
+        chdir $tmpdir or die "Error changing to $tmpdir: $!";
         unlink("$tmpdir/scaffolds.fasta") or die "Error unlinking $tmpdir/scaffolds.fasta:$!";
         symlink( "$tmpdir/origin/scaffolds_renumbered.fasta", "$tmpdir/scaffolds.fasta" )
           or die "Error symlinking scaffolds_ori_split.fasta:$!";
@@ -3268,7 +3257,7 @@ sub merge_annotations {
         $outIO->write_seq($embl_record);
     }
 
-    chdir $tmpdir           or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
     unlink "scaffolds.embl" or die "Error unlinking scaffolds.embl: $!";
     symlink( "annotation_merge/scaffolds.embl", "scaffolds.embl" )
       or die "Error creating scaffolds.embl symlink: $!";
@@ -3576,9 +3565,9 @@ sub show_tools {
 
     my $config = shift;
 
-    my @available_assemblers = map { $_->{'name'} } @{ $config->{'assemblers'} };
-
+    my @available_assemblers  = map { $_->{'name'} } @{ $config->{'assemblers'} };
     my @available_scaffolders = map { $_->{'name'} } @{ $config->{'scaffolders'} };
+    my @available_mergers     = map { $_->{'name'} } @{ $config->{'merge_tools'} };
 
     my @platforms = map { $_->{'platforms'} } @{ $config->{'assembler_categories'} };
     my %available_platforms;
@@ -3592,6 +3581,7 @@ sub show_tools {
     print "\nWelcome to BugBuilder\n\n";
     print "Available assemblers: " . join( ", ", @available_assemblers ),
       "\n" . "Available scaffolders: " . join( ", ", @available_scaffolders ),
+      "\n" . "Available assembly merging tools: " . join( ", ", @available_mergers ),
       "\n" . "Configured platforms: " . join( ", ", @available_platforms ), "\n\n";
 
     return ();

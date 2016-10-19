@@ -1,0 +1,124 @@
+#!/bin/env perl
+
+######################################################################
+#
+# Wrapper for AMOS minimus 2 for BugBuilder assembly merging
+# 
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_minimus
+
+=head1 SYNOPSIS
+
+run_minimus --tmpdir BugBuilder_working_directory 
+
+=head1 DESCRIPTION
+
+Wrapper for AMOS minimus2 assembler, for use in merging BugBuilder assemblies
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, @assemblers, $tmpdir );
+
+    my $result = GetOptions(
+                             'tmpdir=s'        => \$tmpdir,
+				'assembler=s' => \@assemblers,
+                             'help'            => \$help,
+                             'man'             => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$assemblers[1] );
+
+    chdir "$tmpdir/minimus" or croak "Could not chdir to $tmpdir/minumus: $!";
+
+	my @contigs;
+    my $assemblers = $config->{'assemblers'};
+    foreach my $assembler (@$assemblers) {
+        my $name          = $assembler->{'name'};
+	if (grep (/$name/, @assemblers)) {
+        my $contig_output = $assembler->{'contig_output'};
+        $contig_output =~ s/__TMPDIR__/$tmpdir/;
+        symlink( $contig_output, "$name.seq" )
+          or die " Could not symlink $contig_output->$name.seq : $! ";
+		push @contigs, "$name.seq";
+	my $count = `grep -c '>' $contig_output`;
+	chomp ($count);
+	print "Input assembly $name: $count contigs\n";
+	}
+    }
+
+    my $cmd = $config->{'amos_dir'}
+      . "/tarchive2amos -o merged ". join (" ",@contigs). " > $tmpdir/minimus/tarchive2amos.log 2>&1";
+    system($cmd) == 0 or die " Error running $cmd";
+
+    my $count = `grep -c '>' $contigs[0]`;
+    chomp $count;
+
+    $cmd = $config->{'amos_dir'} . "/minimus2 merged -D REFCOUNT=$count > $tmpdir/minimus/minumus2.log 2>&1";
+    system($cmd) == 0 or die " Error running $cmd";
+
+    $cmd = "cat merged.singletons.seq >> merged.fasta";
+    system($cmd) == 0 or die " Error running $cmd";
+
+    # some contigs ids can end up non-unique, so need to renumber these
+    my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => 'merged.fasta' );
+    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">renumbered.fasta" );
+    my $i     = 0;
+    while ( my $seq = $inIO->next_seq() ) {
+        $seq->id( ++$i );
+        $outIO->write_seq($seq);
+    }
+
+}

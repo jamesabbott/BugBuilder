@@ -734,3 +734,11 @@ scaffolders:
      scaffold_output: BugBuilder.scaffolds.fasta
      create_dir: 1
      priority: 3
+
+merge_tools:
+   - name: minimus
+     command: __BUGBUILDER_BIN__/run_minimus --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__
+     contig_output: renumbered.fasta
+     create_dir: 1
+     priority: 1
+     allow_scaffolding: 1
