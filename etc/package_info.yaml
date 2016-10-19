@@ -318,5 +318,12 @@ packages:
       version_test: "__BBDIR__/bin/circleator -v 2>&1|awk '{print  $3}'"
       version:
         - 1.0.0rc4
+    - name: 'masurca'
+      tarball: 'MaSuRCA-3.2.1_10012016.tar.gz'
+      build_cmd: 'cd __BBDIR__/../src/masurca/MaSuRCA-3.2.1_10012016; DEST=__PACKDIR__ ./install.sh'
+      bin_dir: 'masurca/bin'
+      binary: 'masurca'
+      key: 'masurca_dir'
+    
 
 

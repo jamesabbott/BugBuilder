@@ -4,7 +4,6 @@ FEATURES
 * SMB sharing from VM to ease data transfer
 * Add debain/ubuntu support to configure.pl
 * Add long-read scaffolding method i.e. PBjelly
-* Parallelise preprocessing stages where possible
 * Add parameter to assembler config to indicate if trimming is required, and carry out depending on status
 * Improve ori location finding using ori-finder2?
 * Build web-based interface

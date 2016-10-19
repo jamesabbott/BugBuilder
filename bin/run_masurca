@@ -1,0 +1,183 @@
+#!/bin/env perl
+
+######################################################################
+#
+# Wrapper for MaSuRCA assembler to permit use via BugBuilder assembly stage
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_celera
+
+=head1 SYNOPSIS
+
+run_masurca --tmpdir BugBuilder_working_directory --fastq1 read1.fastq --fastq2 read2.fastq
+--category [assembler_category] [--insert_size insertsize] [--insert-stddev stddev] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for MaSuRCA assembler. 
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<fastq1>: Fastq file1
+
+=item B<fastq2>: Fastq file2
+
+=item B<category>: Category of assembly i.e. long_illumina, 454_IonTorrent
+
+=item B<insert_size>: Library insert size
+
+=item B<insert_stddev>: Standard deviation of library insert size
+
+=item B<genome_size>: Estimated size of genome
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+use HTML::Template;
+use File::Find::Rule;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $fastq1, $fastq2, $long_fastq, $insert_size, $insert_stddev, $threads, $category, $tmpdir, );
+
+    my $result = GetOptions(
+                             'tmpdir=s'        => \$tmpdir,
+                             'fastq1=s'        => \$fastq1,
+                             'fastq2:s'        => \$fastq2,
+                             'longfastq:s'     => \$long_fastq,
+                             'category=s'      => \$category,
+                             'insert_size=s'   => \$insert_size,
+                             'insert_stddev=s' => \$insert_stddev,
+                             'threads:s'       => \$threads,
+                             'help'            => \$help,
+                             'man'             => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$category );
+    pod2usage( verbose => 1 )
+      if ( !$long_fastq && !$fastq1 );
+
+    if ($fastq1) {
+        croak "\n$fastq1 does not exist" unless ( -e $fastq1 );
+    }
+    if ($long_fastq) {
+        croak "\n$long_fastq does not exist" unless ( -e $long_fastq );
+    }
+
+    croak "Invalid plaftorm: $category"
+      unless (    $category eq '454_IonTorrent'
+               || $category eq 'long_illumina'
+               || $category eq 'hybrid' );
+
+    chdir "$tmpdir/masurca" or croak "Could not chdir to $tmpdir/masurca: $!";
+
+    my $libs = "";
+    if ( $fastq1 && $fastq2 ) {
+        $libs .= "PE= IL $insert_size $insert_stddev $fastq1 $fastq2\n";
+    }
+    if ($long_fastq) {
+
+        print "Converting long_fastq file $long_fastq to fasta...\n";
+        if ( $long_fastq =~ /\.gz$/ ) {
+            open FASTQ, "<:gzip", "$long_fastq" or croak "Could not open $long_fastq: $!";
+        }
+        else {
+            open FASTQ, "$long_fastq" or croak "Could not open $long_fastq: $!";
+        }
+        open FASTA, ">pacbio.fasta" or croak "Could not open pacbio.fasta: $!";
+        until ( eof FASTQ ) {
+            my ( $line, @block );
+            push @block, $line while ( @block < 4 and $line = <FASTQ> );
+            my $id = $block[0];
+            $id =~ s/^@/>/;
+            print FASTA $id;
+            print FASTA $block[1];
+        }
+
+        close FASTQ;
+        close FASTA;
+
+        $libs .= "PACBIO=pacbio.fasta";
+    }
+
+    my $template = HTML::Template->new( filename => "$FindBin::Bin/../etc/masurca_config.tmpl" );
+    $template->param( "THREADS" => $threads );
+    $template->param( "LIBS"    => $libs );
+    if ($long_fastq) {
+        $template->param( 'LINKING' => '0' );
+    }
+    else {
+        $template->param( 'LINKING' => '1' );
+    }
+
+    open TEMPLATE, ">config.txt" or croak "Error opening config.txt: $!";
+    print TEMPLATE $template->output();
+    close TEMPLATE;
+
+    my $cmd = $config->{'masurca_dir'} . "/masurca config.txt";
+    print "running $cmd...\n";
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    $cmd = "./assemble.sh";
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    # location of final contigs and scaffolds can vary according to wheter
+    # long reads are used, in which case the directory name is not
+    # predictatble, so go find 'em...
+    my $contigs   = ( File::Find::Rule->file()->name('genome.ctg.fasta')->in('.') )[0];
+    my $scaffolds = ( File::Find::Rule->file()->name('genome.scf.fasta')->in('.') )[0];
+
+    symlink( $contigs,   'contigs.fasta' )   or croak "Error creating contigs.fasta symlink: $!";
+    symlink( $scaffolds, 'scaffolds.fasta' ) or croak "Error creating contigs.fasta symlink: $!";
+
+    exit(0);
+
+}

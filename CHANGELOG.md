@@ -1,5 +1,14 @@
 # Change Log
-## [1.0.2] - 9 October 2016
+## - 19 October 2016
+  - Added support for MaSuRCA assembler, for long illumina and hybrid assemblies
+  - A few fixes to improve handling of hybrid assemblies
+
+## - 12 October 2016
+  - Added 'assembly_gap' features to EMBL format scaffold record. ENA
+    submissions can be made with scaffolds like this instead of needing the AGP
+    file
+
+## - 9 October 2016
   - Bugfix: scaffolded assemblies were not correctly splitting scaffolds into contigs.fasta
 
 ## [1.0.1]  - 31 July 2016

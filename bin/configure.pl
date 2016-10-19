@@ -79,31 +79,32 @@ BEGIN {
             print "\nInstalling this module requires write access to your perl installation,
 		or the perl 'local::lib' module to be available\n";
 
-           # print "\nInstall this module within the BugBuilder installation [yN] ?\n";
+            # print "\nInstall this module within the BugBuilder installation [yN] ?\n";
 
-           # ReadMode 'cbreak';
-           # my $key = ReadKey(0);
-           # ReadMode 'normal';
+            # ReadMode 'cbreak';
+            # my $key = ReadKey(0);
+            # ReadMode 'normal';
             #if ( $key =~ /y/i ) {
 
-                #CPAN::install("$module");
-                my $ret = CPAN->install("$module");
-                print "ret = $ret\n";
+            #CPAN::install("$module");
+            my $ret = CPAN->install("$module");
+            print "ret = $ret\n";
 
             #    eval { require "$module" };
             #    if ( $@ ne "" ) {
             #        print "\nInstall returned $@....\n";
             #        print "$module may not be installed correctly.\n"
             #          . "Please verify your perl configuration then rerun configure.pl\n\n";
-#
-#                    #      exit(1);
-#                }
-                print "\n";
+            #
+            #                    #      exit(1);
+            #                }
+            print "\n";
+
             #}
-#           else {
-#                print "\n\nCan not proceed without $module module...\n";
-#                exit;
-#            }
+            #           else {
+            #                print "\n\nCan not proceed without $module module...\n";
+            #                exit;
+            #            }
         }
     }
 }
@@ -163,7 +164,7 @@ use HTML::Template;
     my $sam2afg_url = "https://sourceforge.net/p/amos/code/ci/master/tree/src/Converters/sam2afg.pl";
     print "Downloading sam2afg from AMOS sourceforge repository...\n";
     my $cmd = "curl -o $bin_dir/samtoafg $sam2afg_url";
-    system($cmd)==0 or die "Error downloading sam2afg: $!";
+    system($cmd) == 0 or die "Error downloading sam2afg: $!";
 
     my $tmp_dir = $term->readline("Enter path to working directory [/tmp]");
     $tmp_dir = "/tmp/" unless ($tmp_dir);
@@ -566,7 +567,8 @@ sub check_version {
                 if ( $name eq 'tbl2asn' ) {
                     $ret = `$location --help 2>&1|head -n1`;
                     if ( $ret =~ /more than a year/ ) {
-                        print RED, "\nERROR: ", color("reset"), "your tbl2asn installation is more than a"
+                        print RED, "\nERROR: ", RESET;
+                        print "your tbl2asn installation is more than a"
                           . " year old, and will therefore not run correctly. Please update this\n", RESET;
                     }
                     $location = "";    # pretend we didn't find it...
@@ -663,6 +665,7 @@ assembler_categories:
     paired_fastq: 'required'
     long_fastq: 'required'
     assemblers:
+      - masurca
       - spades
     scaffolders:
       - mauve
@@ -701,6 +704,15 @@ assemblers:
      contig_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.ctg.fasta
      scaffold_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.scf.fasta
      downsample_reads: 0
+     # masurca works best with untrimmed reads, so use __ORIG_FASTQ1__ nad __ORIG_FASTQ2__
+   - name: masurca
+     create_dir: 1                                                                                                                                                                                             
+     command_pe: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
+     command_hybrid: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --longfastq __LONGFASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
+     contig_output: __TMPDIR__/masurca/contigs.fasta
+     scaffold_output: __TMPDIR__/masurca/scaffolds.fasta 
+     default_args: --threads 8                                                                                                                                                                                 
+     downsample_reads: 0 
 
 scaffolders:
    - name: SIS
