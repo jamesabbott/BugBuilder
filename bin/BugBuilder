@@ -303,8 +303,7 @@ set_paths($config);
 
     my $orig_dir = cwd();
 
-    #    $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
-    $tmpdir = "/scratch/BugBuilder/NSxh62IVsF/";
+    $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
 
     $reference = basename($reference) if ($reference);
 
@@ -332,15 +331,15 @@ set_paths($config);
         }
     }
 
-    #    run_fastqc( $tmpdir, $type ) if ($run_fastqc);
+    run_fastqc( $tmpdir, $type ) if ($run_fastqc);
 
     if ( $mean_read_length && ( $mean_read_length < 50 || $mean_read_length < $trim_length ) ) {
         $trim_length = 25;
         print "\ntrim-length reset to $trim_length due to mean read length ($mean_read_length)\n";
     }
 
-    #    quality_trim_reads( $tmpdir, $encoding, $trim_qv, $trim_length )
-    #      unless ( $type eq 'long' || !$trim_reads );
+    quality_trim_reads( $tmpdir, $encoding, $trim_qv, $trim_length )
+    	unless ( $type eq 'long' || !$trim_reads );
 
     my $downsampled_coverage;
 
@@ -404,11 +403,11 @@ set_paths($config);
         my $assembler = $assemblers[$i];
         my $args      = $assembler_args[$i];
 
-        #        run_assembler(
-        #                       $tmpdir,   $assembler,        $reference,   $args,
-        #                       $link,     $type,             $encoding,    $genome_size,
-        #                       $platform, $mean_read_length, $insert_size, $stddev
-        #                     );
+        run_assembler(
+        $tmpdir,   $assembler,        $reference,   $args,
+        $link,     $type,             $encoding,    $genome_size,
+        $platform, $mean_read_length, $insert_size, $stddev
+        );
 
         #$pm->finish();
     }
@@ -1169,8 +1168,9 @@ sub assess_reads {
 
     if ( -e "$tmpdir/reference.fasta" ) {
         my $inIO = Bio::SeqIO->new( -file => "$tmpdir/reference.fasta", -format => 'fasta' );
-        my $ref = $inIO->next_seq();
-        $genome_size = $ref->length();
+	while (my $ref = $inIO->next_seq()){
+        $genome_size = $genome_size + $ref->length();
+	}
     }
     $coverage      = sprintf( "%d", $tot_length / $genome_size )      if ( $genome_size && $tot_length );
     $long_coverage = sprintf( "%d", $long_tot_length / $genome_size ) if ( $genome_size && $long_tot_length );
@@ -1574,6 +1574,7 @@ sub run_assembler {
 # required params: $ (tmpdir)
 #                  $ (arrayref of assemblers used)
 #                  $ (method)
+#                  $ (reference) 
 #
 # returns        : $ (0)
 #
@@ -1584,6 +1585,7 @@ sub merge_assemblies {
     my $tmpdir     = shift;
     my $assemblers = shift;
     my $method     = shift;
+    my $reference  = shift;
 
     message("Merging assemblies ($method)...");
 
@@ -1605,6 +1607,7 @@ sub merge_assemblies {
         $cmd =~ s/__TMPDIR__/$tmpdir/;
         $cmd =~ s/__ASSEMB1__/$assemblers->[0]/;
         $cmd =~ s/__ASSEMB2__/$assemblers->[1]/;
+        $cmd =~ s/__REFERENCE__/${tmpdir}\/reference.fasta/;
 
         system($cmd) == 0 or die "Error running $cmd: $!";
         chdir $tmpdir or die " Error chdiring to $tmpdir: $! ";

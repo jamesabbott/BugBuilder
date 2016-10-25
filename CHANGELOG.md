@@ -1,4 +1,8 @@
 # Change Log
+## - 25 October 2016
+  - BUGFIX: Coverage estimates incorrect for fragmented reference sequences,
+    leading to excessive downsampling and failed assemblies
+
 ## - 19 October 2016
   - Added support for MaSuRCA assembler, for long illumina and hybrid assemblies
   - A few fixes to improve handling of hybrid assemblies
