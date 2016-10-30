@@ -107,7 +107,6 @@ use Bio::SeqIO;
     my $mauve_dir = $config->{'mauve_dir'};
     my $cmd =
 "java -Djava.awt.headless=true -Xmx500m -cp $mauve_dir/Mauve.jar org.gel.mauve.contigs.ContigOrderer -output $scaff_dir -ref $reference -draft $contigs 2>&1 >mauve.log";
-	print "scaff_dir = $scaff_dir\n";
     system($cmd) == 0 or croak "Error running $cmd: $!";
 
     opendir MAUVE, $scaff_dir or croak "Couldn't open $scaff_dir: $!";
