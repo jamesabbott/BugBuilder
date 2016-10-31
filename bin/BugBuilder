@@ -68,6 +68,8 @@ of the 'default_args' setting in the scaffolder configuration
 
 =item B<merge-method>: Assembly merging tool to use
 
+=item B<finisher>: Method for assembly finishing/gap closure
+
 =item B<insert-size>: Size of insert in paired-read library. This will be determined empircally if a reference
 genome sequence is provided, so only needs specifying when assembling paired-read sequences for
 which no reference genome is available.
@@ -180,28 +182,25 @@ set_paths($config);
 
 {
     my (
-         $help,       $man,            $reference,  $fastq1,          $fastq2,   $long_fastq,
-         @assemblers, @assembler_args, $scaffolder, $scaffolder_args, $platform, $insert_size,
-         $stddev,     $downsample,     $locustag,   $centre,          $keepall,
-         $prefix,     $cmd_gap_fill,   $merge_method,
+         $help,         $man,            $reference,  $fastq1,          $fastq2,   $long_fastq,
+         @assemblers,   @assembler_args, $scaffolder, $scaffolder_args, $platform, $insert_size,
+         $stddev,       $downsample,     $locustag,   $centre,          $keepall,  $prefix,
+         $cmd_gap_fill, $merge_method,   $finisher,
        );
 
-    my $mode               = 'submission';
-    my $species            = 'unknown_species';
-    my $genus              = 'unknown_genus';
-    my $strain             = 'unknown_strain';
-    my $run_fastqc         = 1;
-    my $trim_reads         = 1;
-    my $trim_qv            = 20;
-    my $trim_length        = 50;
-    my $split_origin       = 1;
-    my $gap_fill           = 1;
-    my $gap_fill_threshold = 150;
-    my $gap_seal           = 1;
-    my $threads            = 1;
-    my $genome_size        = 0;
-    my $out_dir            = undef;
-    my $tmpdir             = undef;
+    my $mode         = 'submission';
+    my $species      = 'unknown_species';
+    my $genus        = 'unknown_genus';
+    my $strain       = 'unknown_strain';
+    my $run_fastqc   = 1;
+    my $trim_reads   = 1;
+    my $trim_qv      = 20;
+    my $trim_length  = 50;
+    my $split_origin = 1;
+    my $threads      = 1;
+    my $genome_size  = 0;
+    my $out_dir      = undef;
+    my $tmpdir       = undef;
 
     my $fastq_error = 0;
 
@@ -216,46 +215,45 @@ set_paths($config);
     }
 
     my $result = GetOptions(
-                             'reference:s'          => \$reference,
-                             'fastq1=s'             => \$fastq1,
-                             'fastq2:s'             => \$fastq2,
-                             'longfastq:s'          => \$long_fastq,
-                             'platform=s'           => \$platform,
-                             'prefix:s'             => \$prefix,
-                             'assembler:s'          => \@assemblers,
-                             'assembler-args:s'     => \@assembler_args,
-                             'scaffolder:s'         => \$scaffolder,
-                             'scaffolder-args:s'    => \$scaffolder_args,
-                             'merge-method:s'       => \$merge_method,
-                             'insert-size:s'        => \$insert_size,
-                             'insert-stddev:s'      => \$stddev,
-                             'genome-size:s'        => \$genome_size,
-                             'downsample:s'         => \$downsample,
-                             'species=s'            => \$species,
-                             'genus=s'              => \$genus,
-                             'strain=s'             => \$strain,
-                             'locustag:s'           => \$locustag,
-                             'centre:s'             => \$centre,
-                             'mode=s'               => \$mode,
-                             'fastqc!'              => \$run_fastqc,
-                             'trim!'                => \$trim_reads,
-                             'trim-qv:i'            => \$trim_qv,
-                             'trim-length:i'        => \$trim_length,
-                             'split-origin!'        => \$split_origin,
-                             'gap-fill!'            => \$cmd_gap_fill,
-                             'gap-fill-threshold:s' => \$gap_fill_threshold,
-                             'gap-seal!'            => \$gap_seal,
-                             'keepall'              => \$keepall,
-                             'help'                 => \$help,
-                             'man'                  => \$man,
-                             'threads:i'            => \$threads,
-                             'out-dir:s'            => \$out_dir,
-                             'tmp-dir:s'            => \$tmpdir
+                             'reference:s'       => \$reference,
+                             'fastq1=s'          => \$fastq1,
+                             'fastq2:s'          => \$fastq2,
+                             'longfastq:s'       => \$long_fastq,
+                             'platform=s'        => \$platform,
+                             'prefix:s'          => \$prefix,
+                             'assembler:s'       => \@assemblers,
+                             'assembler-args:s'  => \@assembler_args,
+                             'scaffolder:s'      => \$scaffolder,
+                             'scaffolder-args:s' => \$scaffolder_args,
+                             'merge-method:s'    => \$merge_method,
+                             'finisher:s'        => \$finisher,
+                             'insert-size:s'     => \$insert_size,
+                             'insert-stddev:s'   => \$stddev,
+                             'genome-size:s'     => \$genome_size,
+                             'downsample:s'      => \$downsample,
+                             'species=s'         => \$species,
+                             'genus=s'           => \$genus,
+                             'strain=s'          => \$strain,
+                             'locustag:s'        => \$locustag,
+                             'centre:s'          => \$centre,
+                             'mode=s'            => \$mode,
+                             'fastqc!'           => \$run_fastqc,
+                             'trim!'             => \$trim_reads,
+                             'trim-qv:i'         => \$trim_qv,
+                             'trim-length:i'     => \$trim_length,
+                             'split-origin!'     => \$split_origin,
+                             'keepall'           => \$keepall,
+                             'help'              => \$help,
+                             'man'               => \$man,
+                             'threads:i'         => \$threads,
+                             'out-dir:s'         => \$out_dir,
+                             'tmp-dir:s'         => \$tmpdir
                            );
     @assemblers = map { lc($_) } @assemblers;
-    $scaffolder = lc($scaffolder) if ($scaffolder);
-    $platform   = lc($platform)   if ($platform);
-    $gap_fill++ if ($cmd_gap_fill);
+    $scaffolder   = lc($scaffolder)   if ($scaffolder);
+    $merge_method = lc($merge_method) if ($merge_method);
+    $finisher     = lc($finisher)     if ($finisher);
+    $platform     = lc($platform)     if ($platform);
 
     die "\nUnknown argument: @ARGV" if "@ARGV";
     pod2usage( verbose => 2 ) if ($man);
@@ -318,10 +316,13 @@ set_paths($config);
     die "\nPlease supply a genome size or reference sequence when running a long-read assembly"
       if ( $type eq 'long' && ( !$genome_size && !$reference ) );
 
-    my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method ) =
-      select_tools( $config, \@assemblers, $scaffolder, $merge_method, $paired, $reference, $type, $mean_read_length );
-    @assemblers = @$sel_assemblers;
-    $scaffolder = $sel_scaffolder;
+    my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method, $sel_finisher ) =
+      select_tools( $config, \@assemblers, $scaffolder, $merge_method, $finisher,
+                    $paired, $reference,   $type,       $mean_read_length );
+    @assemblers   = @$sel_assemblers;
+    $scaffolder   = $sel_scaffolder;
+    $merge_method = $sel_merge_method;
+    $finisher     = $sel_finisher;
 
     # pull downsampling attribute from assembler configuration
     my $assembler_conf_downsample = 0;
@@ -340,7 +341,7 @@ set_paths($config);
     }
 
     quality_trim_reads( $tmpdir, $encoding, $trim_qv, $trim_length )
-    	unless ( $type eq 'long' || !$trim_reads );
+      unless ( $type eq 'long' || !$trim_reads );
 
     my $downsampled_coverage;
 
@@ -380,14 +381,14 @@ set_paths($config);
     $tb->setOptions( { 'hide_HeadRow' => 1 } );
     $tb->alignCol( 'Aaaaaaaaargh', 'left' );
     $tb->alignCol( 'Phwwwwwwweb',  'left' );
-    $tb->addRow( "Assembly category",   $type );
-    $tb->addRow( "Selected assemblers", join( ",", @assemblers ) );
-    $tb->addRow( "Selected scaffolder", $scaffolder ) if ($scaffolder);
-    $tb->addRow( "Trim QV",             $trim_qv ) if ($trim_reads);
-    $tb->addRow( "Trim length",         $trim_length ) if ($trim_reads);
-    $tb->addRow( "Split Origin",        $split_origin );
-    $tb->addRow( "Gap Fill",            $gap_fill );
-    $tb->addRow( "Gap Seal",            $gap_seal );
+    $tb->addRow( "Assembly category",        $type );
+    $tb->addRow( "Selected assemblers",      join( ",", @assemblers ) );
+    $tb->addRow( "Selected assembly merger", $merge_method ) if ($merge_method);
+    $tb->addRow( "Selected scaffolder",      $scaffolder ) if ($scaffolder);
+    $tb->addRow( "Selected finisher",        $finisher ) if ($finisher);
+    $tb->addRow( "Trim QV",                  $trim_qv ) if ($trim_reads);
+    $tb->addRow( "Trim length",              $trim_length ) if ($trim_reads);
+    $tb->addRow( "Split Origin",             $split_origin );
     print "$tb\n";
 
     print "Running in $mode mode\n";
@@ -405,16 +406,16 @@ set_paths($config);
         my $args      = $assembler_args[$i];
 
         run_assembler(
-        $tmpdir,   $assembler,        $reference,   $args,
-        $link,     $type,             $encoding,    $genome_size,
-        $platform, $mean_read_length, $insert_size, $stddev
-        );
+                       $tmpdir,   $assembler,        $reference,   $args,
+                       $link,     $type,             $encoding,    $genome_size,
+                       $platform, $mean_read_length, $insert_size, $stddev
+                     );
 
-        #$pm->finish();
+        $pm->finish();
     }
 
     #$pm->wait_all_children;
-    merge_assemblies( $tmpdir, \@assemblers, $sel_merge_method ) if ( $#assemblers == 1 );
+    merge_assemblies( $tmpdir, \@assemblers, $merge_method ) if ( $#assemblers == 1 );
 
     my $scaffold_type = 'paired-ends'
       ;    #used to set linkage evidence in agp file, default to method used by assemblers in case no scaffolding run
@@ -434,29 +435,31 @@ set_paths($config);
           if ($split_origin);
         order_scaffolds( $tmpdir, basename($reference) );
 
+        finish_assembly( $tmpdir, $finisher, $insert_size, $stddev, $encoding, $threads ) if ($finisher);
+
         #gapfiller requires paired libraries, but will only run if <50 contigs or if specifically requested
-        my $contig_count = `grep -c '>' $tmpdir/contigs.fasta`;
-        chomp $contig_count;
-        if ( $fastq2 && $config->{'gapfiller_dir'} ) {
-            if ( ( $contig_count <= $gap_fill_threshold && $gap_fill > 0 ) || ( $gap_fill == 2 ) ) {
-                run_gapfiller( $tmpdir, $insert_size, $stddev );
-            }
-            else {
-                print "Assembly contains more than $gap_fill_threshold contigs\n"
-                  . "Rerun with --gap-fill argument to force GapFiller to be run\n";
-            }
-        }
+        #my $contig_count = `grep -c '>' $tmpdir/contigs.fasta`;
+        #chomp $contig_count;
+        #if ( $fastq2 && $config->{'gapfiller_dir'} ) {
+        #    if ( ( $contig_count <= $gap_fill_threshold && $gap_fill > 0 ) || ( $gap_fill == 2 ) ) {
+        #        run_gapfiller( $tmpdir, $insert_size, $stddev );
+        #    }
+        #    else {
+        #        print "Assembly contains more than $gap_fill_threshold contigs\n"
+        #          . "Rerun with --gap-fill argument to force GapFiller to be run\n";
+        #    }
+        #}
     }
 
-    if ( -e "$tmpdir/scaffolds.fasta" && which 'abyss-sealer' ) {
-        if ( $gap_seal > 0 ) {
-            message("Assembly Scaffold Statistics before gap sealing...");
-            get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
-            run_gapsealer( $tmpdir, $encoding, $threads );
-            message("Assembly Scaffold Statistics after gap sealing...");
-            get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
-        }
-    }
+    #if ( -e "$tmpdir/scaffolds.fasta" && which 'abyss-sealer' ) {
+    #    if ( $gap_seal > 0 ) {
+    #        message("Assembly Scaffold Statistics before gap sealing...");
+    #        get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+    #        run_gapsealer( $tmpdir, $encoding, $threads );
+    #        message("Assembly Scaffold Statistics after gap sealing...");
+    #        get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+    #    }
+    #}
 
     my $gaps;
     if ( -e "$tmpdir/scaffolds.fasta" ) {
@@ -611,6 +614,7 @@ sub set_paths {
 #                  $ (arrayref of requested assemblers)
 #                  $ (name of requested scaffolder)
 #                  $ (name of requested merge tool)
+#                  $ (name of requested finishing tool)
 #                  $ (paired - flag to indicate we are using paired reads
 #                  $ (reference - indicates a reference has been provided)
 #                  $ (type - category of sequence i.e. short_illumina)
@@ -627,6 +631,7 @@ sub select_tools {
     my $assemblers  = shift;
     my $scaffolder  = shift;
     my $merger      = shift;
+    my $finisher    = shift;
     my $paired      = shift;
     my $reference   = shift;
     my $type        = shift;
@@ -724,7 +729,28 @@ sub select_tools {
         }
     }
 
-    return ( \@assemblers, $scaffolder, $merger );
+    my @available_finishers = map { $_->[0] }
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'finishers'} };
+
+    if ($finisher) {
+        unless ( grep ( /^$finisher$/i, @available_finishers ) ) {
+            die "\nError: $finisher is not a valid finishiing-tool\n\n" . "The following tools are configured: ",
+              join( ", ", @available_finishers ), "\n\n";
+        }
+        my $conf_finishers = $config->{'finishers'};
+        foreach my $conf_finisher (@$conf_finishers) {
+            my $name = lc( $conf_finisher->{'name'} );
+            if ( $name eq $finisher ) {
+                die "Error: $finisher requires a reference sequence" unless ($reference);
+                if ( $conf_finisher->{'paired_reads'} ) {
+                    die "Error: $finisher requires paired reads" unless ($paired);
+                }
+            }
+        }
+    }
+
+    return ( \@assemblers, $scaffolder, $merger, $finisher );
 
 }
 
@@ -991,7 +1017,7 @@ sub run_fastqc {
     my $type   = shift;
 
     message("Running FastQC...");
-    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir          or die "Error chdiring to $tmpdir: $!";
     mkdir "$tmpdir/fastqc" or die "Error creating $tmpdir/fastqc: $!";
 
     my $fastq1     = readlink("$tmpdir/read1.fastq");
@@ -1004,7 +1030,7 @@ sub run_fastqc {
     $cmd .= " $tmpdir/$long_fastq" if ($long_fastq);
     $cmd .= " >$tmpdir/fastqc/fastqc.log 2>&1";
 
-    system($cmd) == 0 or die "Error running command $cmd: $!";
+    system($cmd) == 0      or die "Error running command $cmd: $!";
     chdir "$tmpdir/fastqc" or die "Error chdiring to $tmpdir/fastqc: $!";
 
     my $fail = 0;
@@ -1169,9 +1195,9 @@ sub assess_reads {
 
     if ( -e "$tmpdir/reference.fasta" ) {
         my $inIO = Bio::SeqIO->new( -file => "$tmpdir/reference.fasta", -format => 'fasta' );
-	while (my $ref = $inIO->next_seq()){
-        $genome_size = $genome_size + $ref->length();
-	}
+        while ( my $ref = $inIO->next_seq() ) {
+            $genome_size = $genome_size + $ref->length();
+        }
     }
     $coverage      = sprintf( "%d", $tot_length / $genome_size )      if ( $genome_size && $tot_length );
     $long_coverage = sprintf( "%d", $long_tot_length / $genome_size ) if ( $genome_size && $long_tot_length );
@@ -1379,7 +1405,7 @@ sub downsample_reads {
 
     my $seqtk_dir = $config->{'seqtk_dir'};
     mkdir "$tmpdir/downsampling" or die "Error creating  $tmpdir/downsampling: $!";
-    chdir "$tmpdir/" or die "Error chdiring to $tmpdir/ downsampling : $! ";
+    chdir "$tmpdir/"             or die "Error chdiring to $tmpdir/ downsampling : $! ";
     print "Projected Coverage: ${orig_coverage}x: Downsampling reads to ${coverage}x...\n";
     foreach my $fastq (qw(read1.fastq read2.fastq)) {
         if ( -e "$tmpdir/$fastq" ) {
@@ -1575,7 +1601,7 @@ sub run_assembler {
 # required params: $ (tmpdir)
 #                  $ (arrayref of assemblers used)
 #                  $ (method)
-#                  $ (reference) 
+#                  $ (reference)
 #
 # returns        : $ (0)
 #
@@ -1611,7 +1637,7 @@ sub merge_assemblies {
         $cmd =~ s/__REFERENCE__/${tmpdir}\/reference.fasta/;
 
         system($cmd) == 0 or die "Error running $cmd: $!";
-        chdir $tmpdir or die " Error chdiring to $tmpdir: $! ";
+        chdir $tmpdir     or die " Error chdiring to $tmpdir: $! ";
         symlink( "$method/$contig_output", "contigs.fasta" )
           or die " Error creating symlink : $! ";
 
@@ -1621,6 +1647,65 @@ sub merge_assemblies {
         return (0);
 
     }
+}
+
+######################################################################
+#
+# finish_assembly
+#
+# Carried out assembly finishing using selected method
+#
+# required params: $ (tmpdir)
+#                  $ (finisher)
+#                  $ (insert size)
+#                  $ (insert stddev)
+#                  $ (base quality encoding)
+#                  $ (no. threads)
+#
+# returns        : $ (0)
+#
+######################################################################
+
+sub finish_assembly {
+
+    my $tmpdir        = shift;
+    my $finisher      = shift;
+    my $insert_size   = shift;
+    my $insert_stddev = shift;
+    my $encoding      = shift;
+    my $threads       = shift;
+
+    message("Finishing assembly ($finisher)...");
+
+    my ( $cmd, $create_dir );
+    my $finishers = $config->{'finishers'};
+    foreach my $tool (@$finishers) {
+        my $name = $tool->{'name'};
+        if ( $name eq $finisher ) {
+            $cmd        = $tool->{'command'};
+            $create_dir = $tool->{'create_dir'};
+        }
+    }
+    if ($create_dir) {
+        mkdir "$tmpdir/$finisher" or die "Error creating $tmpdir/$finisher: $! ";
+        chdir "$tmpdir/$finisher" or die "Error chdiring to $tmpdir/$finisher: $!";
+    }
+
+    $cmd =~ s/__BUGBUILDER_BIN__/$FindBin::Bin/;
+    $cmd =~ s/__TMPDIR__/$tmpdir/;
+    $cmd =~ s/__REFERENCE__/${tmpdir}\/reference.fasta/;
+    $cmd =~ s/__INSSIZE__/$insert_size/;
+    $cmd =~ s/__INSSD__/$insert_stddev/;
+    $cmd =~ s/__ENCODING__/$encoding/;
+    $cmd =~ s/__THREADS__/$threads/;
+
+    system($cmd) == 0 or die "Error running $cmd: $!";
+    chdir $tmpdir     or die " Error chdiring to $tmpdir: $! ";
+
+    print "Finished assembly statistics : \n============================\n";
+    get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' );
+
+    return (0);
 }
 
 ######################################################################
@@ -1720,7 +1805,7 @@ sub align_reads {
     system($cmd) == 0 or die "Error running $cmd";
 
     $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
-    system($cmd) == 0 or die "Error running $cmd";
+    system($cmd) == 0                 or die "Error running $cmd";
     unlink("$tmpdir/bwa/read1.fastq") or die " Error unlinking $tmpdir/bwa/read1.fastq: $! ";
     unlink("$tmpdir/bwa/read2.fastq")
       or die " Error unlinking $tmpdir/bwa/read1.fastq : $! "
@@ -2475,7 +2560,7 @@ sub build_agp {
         }
     }
 
-    close AGP or warn "Error closring $tmpdir/scaffolds.agp: $!";
+    close AGP     or warn "Error closring $tmpdir/scaffolds.agp: $!";
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
 
     unlink "scaffolds.fasta" or die "Error removing scaffolds.fasta: $!";
@@ -2730,7 +2815,7 @@ sub find_origin {
       SCAFFOLD: while ( my $scaffold = $io->next_seq() ) {
             my ( $ori_scaffold, $pos ) = split( /:/, $origin );
             if ( $ori_scaffold eq $scaffold->display_id() ) {
-                my $part_a = $scaffold->subseq( 1,        $pos );
+                my $part_a = $scaffold->subseq( 1, $pos );
                 my $part_b = $scaffold->subseq( $pos + 1, $scaffold->length() );
                 my $ori_a = Bio::Seq->new( -display_id => $scaffold->display_id . "_A", -seq => $part_a );
                 my $ori_b = Bio::Seq->new( -display_id => $scaffold->display_id . "_B", -seq => $part_b );
@@ -2766,7 +2851,7 @@ sub find_origin {
             $outIO->write_seq($seq);
         }
 
-        chdir $tmpdir or die "Error changing to $tmpdir: $!";
+        chdir $tmpdir                     or die "Error changing to $tmpdir: $!";
         unlink("$tmpdir/scaffolds.fasta") or die "Error unlinking $tmpdir/scaffolds.fasta:$!";
         symlink( "$tmpdir/origin/scaffolds_renumbered.fasta", "$tmpdir/scaffolds.fasta" )
           or die "Error symlinking scaffolds_ori_split.fasta:$!";
@@ -3261,7 +3346,7 @@ sub merge_annotations {
         $outIO->write_seq($embl_record);
     }
 
-    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir           or die "Error chdiring to $tmpdir: $!";
     unlink "scaffolds.embl" or die "Error unlinking scaffolds.embl: $!";
     symlink( "annotation_merge/scaffolds.embl", "scaffolds.embl" )
       or die "Error creating scaffolds.embl symlink: $!";
@@ -3572,8 +3657,9 @@ sub show_tools {
     my @available_assemblers  = map { $_->{'name'} } @{ $config->{'assemblers'} };
     my @available_scaffolders = map { $_->{'name'} } @{ $config->{'scaffolders'} };
     my @available_mergers     = map { $_->{'name'} } @{ $config->{'merge_tools'} };
+    my @available_finishers   = map { $_->{'name'} } @{ $config->{'finishers'} };
+    my @platforms             = map { $_->{'platforms'} } @{ $config->{'assembler_categories'} };
 
-    my @platforms = map { $_->{'platforms'} } @{ $config->{'assembler_categories'} };
     my %available_platforms;
     foreach my $platform (@platforms) {
         foreach my $p (@$platform) {
@@ -3583,9 +3669,10 @@ sub show_tools {
     my @available_platforms = sort( keys(%available_platforms) );
 
     print "\nWelcome to BugBuilder\n\n";
-    print "Available assemblers: " . join( ", ", @available_assemblers ),
-      "\n" . "Available scaffolders: " . join( ", ", @available_scaffolders ),
+    print "Available assemblers: " . join( ", ",                @available_assemblers ),
+      "\n" . "Available scaffolders: " . join( ", ",            @available_scaffolders ),
       "\n" . "Available assembly merging tools: " . join( ", ", @available_mergers ),
+      "\n" . "Available finishing tools: " . join( ", ",        @available_finishers ),
       "\n" . "Configured platforms: " . join( ", ", @available_platforms ), "\n\n";
 
     return ();

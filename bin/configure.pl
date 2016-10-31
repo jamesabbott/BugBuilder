@@ -748,3 +748,17 @@ merge_tools:
      create_dir: 1
      priority: 2
      allow_scaffolding: 1
+
+finishers:
+   - name: gapfiller
+     command: __BUGBUILDER_BIN__/run_gapfiller --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__
+     create_dir: 1
+     ref_required: 0
+     paired_reads: 1
+     priority: 2
+   - name: abyss-sealer
+     command: __BUGBUILDER_BIN__/run_abyss-sealer --tmpdir __TMPDIR__ --encoding __ENCODING__ --threads __THREADS__
+     create_dir: 1
+     ref_required: 0
+     paired_reads: 1
+     priority: 3

@@ -1,0 +1,139 @@
+#!/bin/env perl
+
+######################################################################
+#
+# BugBuilder wrapper for abyss-sealer
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_abyss_sealer
+
+=head1 SYNOPSIS
+
+run_abyss-sealer --tmpdir BugBuilder_working_directory --encoding encoding --threads [n] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for running abyss-gapfill within BugBuilder
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory
+
+=item B<encoding>: base score encoding
+
+=item B<threads>: num. of parallel threads to run
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $tmpdir, $encoding, $threads );
+
+    my $result = GetOptions(
+                             'tmpdir=s'   => \$tmpdir,
+                             'encoding=s' => \$encoding,
+                             'threads=s'  => \$threads,
+                             'help'       => \$help,
+                             'man'        => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$encoding );
+
+    # Following contributed by Andrey Tovchigrechko <andreyto@gmail.com>
+    my $filled_prefix = "gap_sealed";
+
+    # First, try to use reads error-corrected by Spades if they exits
+    my @reads = glob("$tmpdir/spades/corrected/*.cor.fastq.gz");
+    if ( !@reads ) {
+
+        # Otherwise, use the input reads and rely on error-correction built into abyss-sealer
+        @reads = glob("$tmpdir/read[0-9].fastq");
+    }
+
+    @reads or die "Read files not found\n";
+
+    my $enc_opt = '--standard-quality';
+    if ( $encoding ne 'sanger' ) {
+        $enc_opt = '--illumina-quality';
+    }
+
+    # --no-trim-masked is critical. Contrary to --help output, trimming of
+    # lower case nucleotides is the default in version 1.9.0, and everything is lower case after
+    # the contig orientation step, except for the Ns.
+    my $cmd =
+        $config->{'abyss_dir'}
+      . "abyss-sealer --no-trim-masked -k95 -k90 -k80 -P 10 -j $threads $enc_opt -o $filled_prefix -S $tmpdir/scaffolds.fasta "
+      . join( " ", @reads );
+
+    ( system($cmd) == 0 ) or die "Error running abyss-sealer";
+
+    my $filledIO         = Bio::SeqIO->new( -file => "${filled_prefix}_scaffold.fa", -format => 'fasta' );
+    my $filledScaffOutIO = Bio::SeqIO->new( -file => ">gapsealer.scaffolds.fasta",   -format => 'fasta' );
+
+    while ( my $filled_scaff = $filledIO->next_seq() ) {
+
+        # expand gaps of a single N to 100 Ns as per convention for unknown gap sizes,
+        # since these are probably the 1 base remaining following gap closure...
+        my $scaff_seq = $filled_scaff->seq();
+        my $gap       = 'N' x 100;
+
+        $scaff_seq =~ s/N+/$gap/g;
+        $filled_scaff->seq($scaff_seq);
+        $filledScaffOutIO->write_seq($filled_scaff);
+    }
+
+    chdir "$tmpdir" or die "Error chdiring: $! ";
+
+    unlink "scaffolds.fasta"
+      or warn "Error removing scaffolds.fasta : $! ";
+    symlink( "abyss-sealer/gapsealer.scaffolds.fasta", "scaffolds.fasta" )
+      or die "Error creating symlink: $! ";
+
+}

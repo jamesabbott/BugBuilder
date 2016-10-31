@@ -1,0 +1,142 @@
+#!/bin/env perl
+
+######################################################################
+#
+# BugBuilder wrapper for gapfiller
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_gapfiller
+
+=head1 SYNOPSIS
+
+run_gapfiller --tmpdir BugBuilder_working_directory --contigs contigs.fasta [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for running gapfiller within BugBuilder
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory
+
+=item B<contigs>: Fasta formatted file of ordered contig sequences to gapfill 
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $tmpdir, $insert_size, $insert_stddev );
+
+    my $result = GetOptions(
+                             'tmpdir=s'        => \$tmpdir,
+                             'insert_size=s'   => \$insert_size,
+                             'insert_sd=s' => \$insert_stddev,
+                             'help'            => \$help,
+                             'man'             => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$insert_size || !$insert_stddev );
+
+    my $error = sprintf( "%.2f", $insert_stddev / $insert_size );
+
+    open LIB, ">library.txt" or die "Error opening library.txt: $! ";
+    print LIB "lib1 bwa $tmpdir/read1.fastq $tmpdir/read2.fastq $insert_size $error FR\n";
+    close LIB;
+
+    # SIS produces multiple scaffolds as multifasta files which we
+    # need to gapfill indendently to maintain the distinction between scaffolds
+
+    my $scaffIO = Bio::SeqIO->new( -file => "$tmpdir/scaffolds.fasta", -format => 'fasta' );
+    my $filledScaffOutIO =
+      Bio::SeqIO->new( -file => ">$tmpdir/gapfiller/gapfiller.scaffolds.fasta", -format => 'fasta' );
+    my $contigOutIO = Bio::SeqIO->new( -file => ">$tmpdir/gapfiller/gapfiller.contigs.fasta", -format => 'fasta' );
+
+    my $i = 0;
+
+    while ( my $scaff = $scaffIO->next_seq() ) {
+        my $outIO =
+          Bio::SeqIO->new( -file   => ">$tmpdir/gapfiller/unfilled_scaffold_" . ++$i,
+                           -format => 'fasta' );
+        $outIO->write_seq($scaff);
+
+        my $cmd = $config->{'gapfiller_dir'}
+          . "GapFiller.pl -s $tmpdir/gapfiller/unfilled_scaffold_$i -l library.txt -T 8 -i 20 -b gapfilled_$i >> $tmpdir/gapfiller/gapfiller.log 2>&1";
+
+        #GapFiller will fail on singleton scaffolds, so wrap the system call in an eval,
+        # and if it hasn't succeeded just symlink in the original file
+        eval { system($cmd); };
+        unless ( -e "gapfilled_$i/gapfilled_$i.gapfilled.final.fa" ) {
+            symlink( "$tmpdir/gapfiller/unfilled_scaffold_$i", "gapfilled_$i/gapfilled_$i.gapfilled.final.fa" )
+              or die " Error creating symlink;$! ";
+        }
+        my $filledIO = Bio::SeqIO->new( -file => "$tmpdir/gapfiller/gapfilled_$i/gapfilled_$i.gapfilled.final.fa" );
+        my $filled_scaff = $filledIO->next_seq();
+
+        # expand gaps of a single N to 100 Ns as per convention for unknown gap sizes,
+        # since these are probably the 1 base remaining following gap closure...
+        my $scaff_seq = $filled_scaff->seq();
+        my $gap       = 'N' x 100;
+
+        # this will replace on ly single N's...
+        #$scaff_seq =~ s/[^N]N[^N]/$gap/g;
+        # whereas this will replace all runs of N...
+        $scaff_seq =~ s/N+/$gap/g;
+        $filled_scaff->seq($scaff_seq);
+        $filledScaffOutIO->write_seq($filled_scaff);
+    }
+
+    chdir "$tmpdir" or die "Error chdiring: $! ";
+
+    unlink "scaffolds.fasta"
+      or warn "Error removing scaffolds.fasta : $! ";
+    symlink( "gapfiller/gapfiller.scaffolds.fasta", "scaffolds.fasta" )
+      or die "Error creating symlink: $! ";
+
+}
