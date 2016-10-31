@@ -736,9 +736,15 @@ scaffolders:
      priority: 3
 
 merge_tools:
+   - name: gfinisher
+     command: __BUGBUILDER_BIN__/run_gfinisher --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__ --reference __REFERENCE__
+     contig_output: renamed.fasta
+     create_dir: 1
+     priority: 1
+     allow_scaffolding: 1
    - name: minimus
      command: __BUGBUILDER_BIN__/run_minimus --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__
      contig_output: renumbered.fasta
      create_dir: 1
-     priority: 1
+     priority: 2
      allow_scaffolding: 1

@@ -324,6 +324,15 @@ packages:
       bin_dir: 'masurca/bin'
       binary: 'masurca'
       key: 'masurca_dir'
-    
+    - name: 'gfinisher'
+      tarball: 'GenomeFinisher_1.4.zip'
+      build_cmd: 'mkdir -v __PACKDIR__lib/gfinisher; mv -v __BBDIR__/../src/gfinisher/GenomeFinisher.jar __PACKDIR__/lib/gfinisher'
+      lib_dir: 'lib/gfinisher'
+      lib: 'GenomeFinisher.jar'
+      version: 
+        - '1.4'
+      version_test: "java -jar __BINARY__/GenomeFinisher.jar -h|head -n1 | awk '{print $5}'"
+      key: 'gfinisher_dir' 
+      download_url: 'https://sourceforge.net/projects/gfinisher/files'
 
 

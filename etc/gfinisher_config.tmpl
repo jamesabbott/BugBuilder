@@ -1,0 +1,79 @@
+# G-Finisher config file
+#
+
+#
+# general parameters
+blastPath=__BLAST_PATH__/
+makeblastdb=makeblastdb
+blastn=blastn
+
+#
+remove_small_contigs=0
+
+
+# step 1     parameter "-preserveAlignment true" is required by AnalyzesContigSort process
+ref_contig_sort_1=-wordsize 15 -preserveAlignment true
+ref_run_analyze_cs_1=true
+ref_break_contig=true
+ref_break_contig_min_length=2000
+ref_break_contig_perc_cov=0.9900
+ref_duplicate_contig_by_cluster=true
+ref_contig_min_length_to_dup=1400
+ref_contig_max_length_to_dup=10000
+
+
+# step 2 - jFGap
+fgap1_contig-end-length=500
+fgap1_contig-end-range=300,5000,50
+fgap1_edge-trim-length=0
+fgap1_max_insert=10000
+fgap1_max-remove-length=3000
+fgap1_max-evalue=1.00000e-07
+fgap1_min-score=50
+fgap1_min-identity=90
+fgap1_positive-gap=true
+fgap1_zero-gap=true
+fgap1_negative-gap=true
+fgap1_gap-char=N
+fgap1_verbose=1
+# compatible mode
+#fgap1_params=-s 50 -e 1e-7 -i 90 -C 300 -T 0 -R 3000 -I 10000 -p 1 -z 1 -g 1 -c N -verbose 1
+
+
+# step 3 - Fuzzy GC Skew
+# gc_skew_window = (100,100000)
+gc_skew_window=500
+# fuzzy_gc_skew_window = (100,100000)
+fuzzy_gc_skew_window=10000
+
+
+# step 4
+ref_contig_sort_2=-wordsize 15 -preserveAlignment true
+ref_run_analyze_cs_2=true
+fgap2_params=$fgap1_params
+
+
+# step 5
+ref_contig_sort_3=-wordsize 15 -preserveAlignment false
+fgap3_params=$fgap1_params
+
+
+# step 6 - jFGap
+fgap4_contig-end-length=5000
+fgap4_contig-end-range=500,5000,50
+fgap4_edge-trim-length=0
+fgap4_max_insert=100000
+fgap4_max-remove-length=25000
+fgap4_max-evalue=1.00000e-07
+fgap4_min-score=50
+fgap4_min-identity=70
+fgap4_positive-gap=true
+fgap4_zero-gap=true
+fgap4_negative-gap=true
+fgap4_gap-char=N
+fgap4_verbose=1
+
+
+# step 7 - Quast
+quast_prepare=true
+quast_dir=%output\quast\%contigfile

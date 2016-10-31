@@ -1,0 +1,139 @@
+#!/bin/env perl
+
+######################################################################
+#
+# Wrapper for GFinisher for BugBuilder assembly merging
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_gfinisher
+
+=head1 SYNOPSIS
+
+run_gfinisher --tmpdir BugBuilder_working_directory --assembler spades --assembler masurca --reference ref.fasta
+
+=head1 DESCRIPTION
+
+Wrapper for AMOS minimus2 assembler, for use in merging BugBuilder assemblies
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory 
+
+=item B<assembler>: Assembler used to generate input contigs (can be called multiple times)
+
+=item B<reference>: Path to reference genome fasta file
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, @assemblers, $tmpdir, $reference );
+
+    my $result = GetOptions(
+                             'tmpdir=s'    => \$tmpdir,
+                             'assembler=s' => \@assemblers,
+                             'reference=s' => \$reference,
+                             'help'        => \$help,
+                             'man'         => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$assemblers[1] || !$reference );
+
+    chdir "$tmpdir/gfinisher" or croak "Could not chdir to $tmpdir/gfinisher: $!";
+
+    my @contigs;
+    my $assemblers = $config->{'assemblers'};
+    foreach my $assembler (@$assemblers) {
+        my $name = $assembler->{'name'};
+        if ( grep ( /$name/, @assemblers ) ) {
+            my $contig_output = $assembler->{'contig_output'};
+            $contig_output =~ s/__TMPDIR__/$tmpdir/;
+            symlink( $contig_output, "$name.fasta" )
+              or die " Could not symlink $contig_output->$name.fasta: $! ";
+            push @contigs, "$name.fasta";
+
+            my $count = `grep -c '>' $contig_output`;
+            chomp($count);
+            print "Input assembly $name: $count contigs\n";
+        }
+    }
+
+    my $template;
+    open TMPL, "$FindBin::Bin/../etc/gfinisher_config.tmpl"
+      or die "Error opening $FindBin::Bin/../etc/gfinisher_config.tmpl: $!";
+    $template .= $_ while (<TMPL>);
+    close TMPL;
+
+    my $blast_path = $config->{'blast_dir'};
+    $template =~ s/__BLAST_PATH__/$blast_path/;
+
+    open TMPL, ">gfinisher.config" or die "Error opening gfinisher.config: $!";
+    print TMPL $template;
+    close TMPL;
+
+    my $cmd =
+        $config->{'java'}
+      . " -Djava.awt.headless=true -jar "
+      . $config->{'gfinisher_dir'}
+      . "GenomeFinisher.jar -config gfinisher.config "
+      . "-i $contigs[0] -ds $contigs[1] -ref $reference -v >gfinisher.log 2>&1";
+    print "\ncommand = $cmd\n";
+    system($cmd) == 0 or die " Error running $cmd";
+
+    # some contigs ids can end up non-unique, so need to renumber these
+    my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => 'out/result_alternative.fasta' );
+    my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">renamed.fasta" );
+    my $i     = 0;
+    while ( my $seq = $inIO->next_seq() ) {
+        $seq->id( ++$i );
+        $outIO->write_seq($seq);
+    }
+
+}
