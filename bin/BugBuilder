@@ -182,7 +182,7 @@ set_paths($config);
     my (
          $help,       $man,            $reference,  $fastq1,          $fastq2,   $long_fastq,
          @assemblers, @assembler_args, $scaffolder, $scaffolder_args, $platform, $insert_size,
-         $stddev,     $genome_size,    $downsample, $locustag,        $centre,   $keepall,
+         $stddev,     $downsample,     $locustag,   $centre,          $keepall,
          $prefix,     $cmd_gap_fill,   $merge_method,
        );
 
@@ -199,6 +199,7 @@ set_paths($config);
     my $gap_fill_threshold = 150;
     my $gap_seal           = 1;
     my $threads            = 1;
+    my $genome_size        = 0;
     my $out_dir            = undef;
     my $tmpdir             = undef;
 
