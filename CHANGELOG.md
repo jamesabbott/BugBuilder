@@ -1,4 +1,12 @@
 # Change Log
+## - 1 Nov 2016
+  - Added pilon as new finishing method
+
+## - 31 Oct 2016
+  - Added GFinsher as alternate assembly merging method
+  - Added 'finishing' module, with options for GapFiller and abyss-sealer moved
+    from main script to separate wrappers
+
 ## - 25 October 2016
   - BUGFIX: Coverage estimates incorrect for fragmented reference sequences,
     leading to excessive downsampling and failed assemblies
