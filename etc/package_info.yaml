@@ -67,6 +67,7 @@ packages:
       version: 
         - '0.1.18'
         - '0.1.19'
+        - '0.1.20'
         - '1.2'
       tarball: 'samtools-1.2.tar.bz2'
       build_cmd: 'cd __BBDIR__/../src/samtools/samtools-1.2/; make -j 2 2>&1; mv -v samtools __PACKDIR__/bin/ 2>&1'
@@ -334,5 +335,13 @@ packages:
       version_test: "java -jar __BINARY__/GenomeFinisher.jar -h|head -n1 | awk '{print $5}'"
       key: 'gfinisher_dir' 
       download_url: 'https://sourceforge.net/projects/gfinisher/files'
-
-
+    - name: 'pilon'
+      version:
+        - '1.20'
+      download_url: 'https://github.com/broadinstitute/pilon/releases'
+      tarball: 'pilon.jar'
+      build_cmd: 'mkdir -v __PACKDIR__/lib/pilon; cp -v __BBDIR__/../src/pilon.jar __PACKDIR__/lib/pilon/pilon.jar'
+      lib_dir: 'lib/pilon'
+      lib: 'pilon.jar'
+      version_test: "java -jar __BINARY__/pilon.jar |head -n1|awk '{print $3}'"
+      key: 'pilon_dir'
