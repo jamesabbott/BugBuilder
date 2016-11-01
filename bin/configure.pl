@@ -444,7 +444,7 @@ sub install_prerequisites {
                     $extract->extract();
                     close Z;
                 }
-                else {
+                elsif ( $tarball !~ /.jar$/ ) {
 
                     my $extract = Archive::Extract->new( archive => "$FindBin::Bin/../src/$tarball" );
                     print LOG "\n\n...extracting to $FindBin::Bin/../src/$name\n";
@@ -510,7 +510,7 @@ sub find_package {
         }
     }
     elsif ( defined($lib) ) {
-        my $lib_path = ( File::Find::Rule->file()->name($lib)->in("$FindBin::Bin/..") )[0];
+        my $lib_path = ( File::Find::Rule->file()->name($lib)->in("$FindBin::Bin/../packages") )[0];
         if ($lib_path) {
             $location = ( fileparse($lib_path) )[1];
             print GREEN, "\n\t$lib found", RESET, "($location)...\n";
@@ -762,3 +762,9 @@ finishers:
      ref_required: 0
      paired_reads: 1
      priority: 3
+   - name: pilon
+     command: __BUGBUILDER_BIN__/run_pilon --tmpdir __TMPDIR__
+     create_dir: 1
+     ref_required: 0
+     paired_reads: 1
+     priority: 1

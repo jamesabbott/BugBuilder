@@ -1,0 +1,120 @@
+#!/bin/env perl
+
+######################################################################
+#
+# BugBuilder wrapper for pilon
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_pilon
+
+=head1 SYNOPSIS
+
+run_pilon --tmpdir BugBuilder_working_directory [n] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for running pilon within BugBuilder
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $tmpdir );
+    my $threads = 1;
+
+    my $result = GetOptions(
+                             'tmpdir=s'  => \$tmpdir,
+                             'threads:s' => \$threads,
+                             'help'      => \$help,
+                             'man'       => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir );
+
+    my $bwa_dir      = $config->{'bwa_dir'};
+    my $samtools_dir = $config->{'samtools_dir'};
+    my $pilon_dir    = $config->{'pilon_dir'};
+    my $java         = $config->{'java'};
+
+    if ( !-e "${tmpdir}/read1.fastq" && !-e "${tmpdir}/read2.fastq" ) {
+        die "Error: paired reads do not seem to be available....\n";
+    }
+    symlink( "${tmpdir}/scaffolds.fasta", "${tmpdir}/pilon/scaffolds.fasta" )
+      or die "Error creating ${tmpdir}/pilon/scaffolds.fasta symlink: $!";
+    symlink( "${tmpdir}/read1.fastq", "${tmpdir}/pilon/read1.fastq" )
+      or die "Error creating ${tmpdir}/pilon/read1.fastq symlink: $!";
+    symlink( "${tmpdir}/read2.fastq", "${tmpdir}/pilon/read2.fastq" )
+      or die "Error creating ${tmpdir}/pilon/read2.fastq symlink: $!";
+
+    my $cmd = $bwa_dir . "/bwa index scaffolds.fasta > ${tmpdir}/pilon/bwa_index.log 2>&1";
+    system($cmd) == 0 or die "Error running bwa index";
+    $cmd = $bwa_dir
+      . "/bwa mem -t ${threads} scaffolds.fasta read1.fastq read2.fastq 2>${tmpdir}/pilon/bwa_mem.log |${samtools_dir}/samtools view -bS - > scaffolds.bam 2>${tmpdir}/pilon/samtools_view.log 2>${tmpdir}/pilon/samtools_view.log";
+    system($cmd) == 0 or die "Error running bwa mem";
+    $cmd = "${samtools_dir}/samtools sort scaffolds.bam scaffolds.sorted >${tmpdir}/pilon/samtools_sort.log 2>&1";
+    system($cmd) == 0 or die "Error running samtools sort";
+    $cmd = "${samtools_dir}/samtools index scaffolds.sorted.bam >${tmpdir}/pilon/samtools_index.log 2>&1";
+    system($cmd) == 0 or die "Error running samtools index";
+
+    $cmd =
+"${java} -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/pilon/scaffolds.fasta --bam ${tmpdir}/pilon/scaffolds.sorted.bam --changes --vcf --tracks --threads $threads > ${tmpdir}/pilon/pilon.log 2>&1";
+    system($cmd) == 0 or die "Error running pilon";
+
+    chdir ${tmpdir} or die "Error changing directory to ${tmpdir}: $!";
+
+    unlink "scaffolds.fasta"
+      or warn "Error removing scaffolds.fasta : $! ";
+    symlink( "pilon/pilon.fasta", "scaffolds.fasta" )
+      or die "Error creating symlink: $! ";
+}
