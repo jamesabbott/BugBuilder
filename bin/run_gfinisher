@@ -124,7 +124,6 @@ use Bio::SeqIO;
       . $config->{'gfinisher_dir'}
       . "GenomeFinisher.jar -config gfinisher.config "
       . "-i $contigs[0] -ds $contigs[1] -ref $reference -v >gfinisher.log 2>&1";
-    print "\ncommand = $cmd\n";
     system($cmd) == 0 or die " Error running $cmd";
 
     # some contigs ids can end up non-unique, so need to renumber these
