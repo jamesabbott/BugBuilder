@@ -111,10 +111,20 @@ use Bio::SeqIO;
 "${java} -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/pilon/scaffolds.fasta --bam ${tmpdir}/pilon/scaffolds.sorted.bam --changes --vcf --tracks --threads $threads > ${tmpdir}/pilon/pilon.log 2>&1";
     system($cmd) == 0 or die "Error running pilon";
 
+   # pilon appends '_pilon' to the end of the scaffold ids, so reformat to our convenction which makes it work properly with our downstream processes...
+	my $inIO = Bio::SeqIO->new(-file=>"$tmpdir/pilon/pilon.fasta", -format=>'fasta');
+	my $outIO = Bio::SeqIO->new(-file=>">$tmpdir/pilon/pilon_renamed.fasta", -format => 'fasta');
+	while (my $seq = $inIO->next_seq()) {
+		my $new_id = $seq->display_id();
+		$new_id=~s/_pilon//;
+		$seq->display_id($new_id);
+		$outIO->write_seq($seq);
+	}
+
     chdir ${tmpdir} or die "Error changing directory to ${tmpdir}: $!";
 
     unlink "scaffolds.fasta"
       or warn "Error removing scaffolds.fasta : $! ";
-    symlink( "pilon/pilon.fasta", "scaffolds.fasta" )
+    symlink( "pilon/pilon_renamed.fasta", "scaffolds.fasta" )
       or die "Error creating symlink: $! ";
 }
