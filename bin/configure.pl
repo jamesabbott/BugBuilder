@@ -392,7 +392,7 @@ sub install_prerequisites {
   PACKAGE: foreach my $package ( @{ $packages->{'packages'} } ) {
 
         my $name         = $package->{'name'};
-        my $tarball      = $package->{'tarball'};
+        my $inst_source  = $package->{'inst_source'};
         my $build_cmd    = $package->{'build_cmd'};
         my $download_url = $package->{'download_url'};
         my $pack_bin_dir = $package->{'bin_dir'};
@@ -415,13 +415,16 @@ sub install_prerequisites {
             $build_cmd =~ s/__PACKDIR__/$pack_dir\//g if ($build_cmd);
             print LOG "\n\nbuild_cmd = $build_cmd\n\n" if ($build_cmd);
 
-            if ( $tarball && not -e "$FindBin::Bin/../src/$tarball" ) {
-                print YELLOW, "The $name software was not found in $FindBin::Bin/../src\n",                RESET;
-                print YELLOW, "\nIf you wish to use this package within BugBuilder, please download \n",   RESET;
-                print YELLOW, "if from  $download_url  and copy the installation file ($tarball) into \n", RESET;
-                print YELLOW, " $FindBin::Bin/../src/\n",                                                  RESET;
-                print YELLOW, "\nOnce the software distribution is in place, press 'Y' to install it\n",   RESET;
-                print YELLOW, "or 'N' to skip installation of $name\n\n",                                  RESET;
+            if ( $inst_source eq 'git' ) {
+                print "$name will be downloaded from git repository...\n";
+            }
+            elsif ( $inst_source && not -e "$FindBin::Bin/../src/$inst_source" ) {
+                print YELLOW, "The $name software was not found in $FindBin::Bin/../src\n",                    RESET;
+                print YELLOW, "\nIf you wish to use this package within BugBuilder, please download \n",       RESET;
+                print YELLOW, "if from  $download_url  and copy the installation file ($inst_source) into \n", RESET;
+                print YELLOW, " $FindBin::Bin/../src/\n",                                                      RESET;
+                print YELLOW, "\nOnce the software distribution is in place, press 'Y' to install it\n",       RESET;
+                print YELLOW, "or 'N' to skip installation of $name\n\n",                                      RESET;
 
                 ReadMode 'cbreak';
                 my $key = ReadKey(0);
@@ -431,12 +434,12 @@ sub install_prerequisites {
                 }
             }
 
-            if ( $tarball && -e "$FindBin::Bin/../src/$tarball" ) {
-                print LOG "\nUnpacking $tarball...\n";
+            if ( $inst_source && -e "$FindBin::Bin/../src/$inst_source" ) {
+                print LOG "\nUnpacking $inst_source...\n";
 
                 # archive;;extract doesn't handle .Z compressed tarfiles nicely, so kludge these with Archive::Tar
-                if ( $tarball =~ /tar\.Z$/ ) {
-                    open Z, "zcat $FindBin::Bin/../src/$tarball |" or die "Error opening piped filehandle: $!";
+                if ( $inst_source =~ /tar\.Z$/ ) {
+                    open Z, "zcat $FindBin::Bin/../src/$inst_source |" or die "Error opening piped filehandle: $!";
                     mkdir "$FindBin::Bin/../src/$name" or die "Error creatinig $FindBin::Bin/../src/$name: $!";
                     chdir "$FindBin::Bin/../src/$name" or die "Error chdiring $FindBin::Bin/../src/$name: $!";
                     print LOG "\n\n...now in $FindBin::Bin/../src/$name\n\n";
@@ -444,34 +447,37 @@ sub install_prerequisites {
                     $extract->extract();
                     close Z;
                 }
-                elsif ( $tarball !~ /.jar$/ ) {
+                elsif ( $inst_source !~ /.jar$/ ) {
 
-                    my $extract = Archive::Extract->new( archive => "$FindBin::Bin/../src/$tarball" );
+                    my $extract = Archive::Extract->new( archive => "$FindBin::Bin/../src/$inst_source" );
                     print LOG "\n\n...extracting to $FindBin::Bin/../src/$name\n";
                     $extract->extract( to => "$FindBin::Bin/../src/$name" );
                 }
-                print "\nBuilding $name...\n\nlogging installation to $bb_dir/install_logs/$name.log\n";
-                print LOG "\nBuilding $name...\n";
-                open BUILD, "$build_cmd 2>&1 |" if ($build_cmd);
-                while (<BUILD>) {
-                    print LOG;
+                elsif ( $inst_source eq 'git' ) {
+                    print LOG"\n\nGit installation...no tarball to extract...\n";
                 }
-                close BUILD;
-                chdir $orig_dir or warn "Could not chdir to $orig_dir: $!";
-                rmtree("$bin_dir/../src/$name");
+            }
+            print "\nBuilding $name...\n\nlogging installation to $bb_dir/install_logs/$name.log\n";
+            print LOG "\nBuilding $name...\n";
+            open BUILD, "$build_cmd 2>&1 |" if ($build_cmd);
+            while (<BUILD>) {
+                print LOG;
+            }
+            close BUILD;
+            chdir $orig_dir or warn "Could not chdir to $orig_dir: $!";
+            rmtree("$bin_dir/../src/$name");
 
-                $installed = find_package($package);
-                unless ($installed) {
-                    print RED,
-                      "\n$name does not seem to have been installed correctly. Please check log file for details...\n",
-                      RESET;
-                }
+            $installed = find_package($package);
+            unless ($installed) {
+                print RED,
+                  "\n$name does not seem to have been installed correctly. Please check log file for details...\n",
+                  RESET;
             }
-            else {
-                print LOG "\nInstallation package for $name not found...skipping...\n";
-            }
-            close LOG;
         }
+        else {
+            print LOG "\nInstallation package for $name not found...skipping...\n";
+        }
+        close LOG;
     }
 
 }
@@ -548,7 +554,7 @@ sub check_version {
     my $name          = $package->{'name'};
     my $good          = 0;
 
-    if ($known_version) {
+    if ( $known_version && $version_test ) {
         $version_test =~ s/__BINARY__/$location/;
         $version_test =~ s/__BBDIR__/$FindBin::Bin\/../;
         my $ret = `$version_test`;
@@ -767,4 +773,11 @@ finishers:
      create_dir: 1
      ref_required: 0
      paired_reads: 1
+     priority: 1
+
+varcallers:
+   - name: pilon
+     command: __BUGBUILDER_BIN__/run_pilon_var --tmpdir __TMPDIR__ --threads __THREADS__
+     ref_required: 1
+     create_dir: 1
      priority: 1

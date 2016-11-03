@@ -19,7 +19,7 @@
 #	
 # version: Versions of package we know is ok. 
 #
-# tarball: Name of archive file of redistributable software hosted on
+# inst_source: Name of archive file of redistributable software hosted on
 # BugBuilder site
 #
 # build_cmd: Shell command to build the software
@@ -32,7 +32,7 @@
 packages:  
     - name: 'fastqc'
       download_url: 'http://www.bioinformatics.babraham.ac.uk/projects/fastqc/'
-      tarball: 'fastqc_v0.11.4.zip'
+      inst_source: 'fastqc_v0.11.4.zip'
       version: 
         - 'v0.11.4'
       build_cmd: 'mv -v __BBDIR__/../src/fastqc/FastQC __PACKDIR__/fastqc 2>&1; chmod +x __PACKDIR__/fastqc/fastqc'
@@ -46,14 +46,14 @@ packages:
       version: 
         - '1.210'
         - '1.200'
-      tarball: 'sickle_1.2.zip'
+      inst_source: 'sickle_1.2.zip'
       build_cmd: 'cd __BBDIR__/../src/sickle/sickle-master; make 2>&1; mv -v sickle __PACKDIR__/bin/sickle 2>&1'
       bin_dir: '/bin'
       key: 'sickle_dir'
       download_url: 'https://github.com/najoshi/sickle'
     - name: 'seqtk'
       download_url: 'https://github.com/lh3/seqtk/archive/seqtk-1.0.tar.gz'
-      tarball: 'seqtk-1.0.tar.gz'
+      inst_source: 'seqtk-1.0.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/seqtk/seqtk-1.0; make 2>&1; mv -v seqtk __PACKDIR__/bin/seqtk 2>&1'
       key: 'seqtk_dir'
       bin_dir: '/bin'
@@ -69,13 +69,13 @@ packages:
         - '0.1.19'
         - '0.1.20'
         - '1.2'
-      tarball: 'samtools-1.2.tar.bz2'
+      inst_source: 'samtools-1.2.tar.bz2'
       build_cmd: 'cd __BBDIR__/../src/samtools/samtools-1.2/; make -j 2 2>&1; mv -v samtools __PACKDIR__/bin/ 2>&1'
       download_url: 'http://samtools.sourceforge.net/'
       bin_dir: '/bin' 
       key: 'samtools_dir'
     - name: 'picard' 
-      tarball: 'picard-tools-1.140.zip'
+      inst_source: 'picard-tools-1.140.zip'
       build_cmd: 'mkdir -v __PACKDIR__/lib/picard; mv -v __BBDIR__/../src/picard/picard-tools-1.140/* __PACKDIR__/lib/picard'
       key: 'picard_dir'
       download_url: 'http://samtools.sourceforge.net/'
@@ -89,7 +89,7 @@ packages:
       version: 
         - 'nov 15, 2011'
       version_test: "grep 'release date' __BINARY__ 2>&1|awk -F: '{print $2}'|sed 's/^ //'"
-      tarball: "sis.zip"
+      inst_source: "sis.zip"
       build_cmd: 'mv -v __BBDIR__/../src/sis/sis/sis.py __PACKDIR__/bin/sis.py 2>&1; mv -v __BBDIR__/../src/sis/sis/multifasta.py __PACKDIR__/bin/multifasta.py 2>&1'
       bin_dir: '/bin'
       key: 'sis_dir'
@@ -99,7 +99,7 @@ packages:
       lib: 'Mauve.jar'
       bin_dir: 'linux-x64'
       build_cmd: 'mv -v __BBDIR__/../src/mauve/mauve_snapshot_2015-02-13/ __PACKDIR__/mauve'
-      tarball: 'mauve_linux_snapshot_2015-02-13.tar.gz'
+      inst_source: 'mauve_linux_snapshot_2015-02-13.tar.gz'
       download_url: 'http://darlinglab.org/mauve/'
       key: 'mauve_dir'
     - name: 'R'
@@ -108,7 +108,7 @@ packages:
         - '3.2.2'
         - '2.15.3'
       version_test: "__BINARY__ --version 2>&1|grep 'R version'|awk '{print $3}'"
-      tarball: "R-3.2.2.tar.gz"
+      inst_source: "R-3.2.2.tar.gz"
       build_cmd: 'cd __BBDIR__/../src/R/R-3.2.2/; ./configure --prefix=__PACKDIR__/.. --with-x=no 2>&1; make -j 2 2>&1; make install 2>&1'
       bin_dir: 'R/bin'
       key: 'R_dir'
@@ -116,7 +116,7 @@ packages:
     - name: 'barrnap'
       version:
         -  '0.6'
-      tarball: "barrnap-0.6.tar.gz"
+      inst_source: "barrnap-0.6.tar.gz"
       build_cmd: 'mv -v __BBDIR__/../src/barrnap/barrnap-0.6 __PACKDIR__/barrnap 2>&1'
       bin_dir: '/barrnap/bin'
       binary: 'barrnap'
@@ -129,7 +129,7 @@ packages:
         - '1.11'
         - '1.5.2'
       version_test: "__BINARY__ --version 2>&1|awk '{print $2}'"
-      tarball: "prokka-1.11.tar.gz"
+      inst_source: "prokka-1.11.tar.gz"
       build_cmd: 'mv -v __BBDIR__/../src/prokka/prokka-1.11 __PACKDIR__/prokka 2>&1; __PACKDIR__/prokka/bin/prokka --setupdb 2>&1'
       bin_dir: '/prokka/bin'
       key: 'prokka_dir'
@@ -140,7 +140,7 @@ packages:
         - 'v1.2.36'
         - 'v1.2.34'
       version_test: "__BINARY__ -h 2>&1|grep 'ARAGORN v'|awk '{print $2}'"
-      tarball: 'aragorn1.2.36.tgz'
+      inst_source: 'aragorn1.2.36.tgz'
       build_cmd: 'cd __BBDIR__/../src/aragorn/aragorn1.2.36; gcc -O3 -ffast-math -finline-functions -o aragorn aragorn1.2.36.c 2>&1; mv -v aragorn __PACKDIR__/bin 2>&1'
       bin_dir: '/bin'
       key: 'aragorn_dir'
@@ -150,7 +150,7 @@ packages:
       version: 
         - 'v2.60'
       version_test: "__BINARY__ 2>&1|grep PRODIGAL|awk '{print $2}'"
-      tarball: 'prodigal.v2_60.tar.gz'
+      inst_source: 'prodigal.v2_60.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/prodigal/prodigal.v2_60; make -j 2 2>&1; mv -v prodigal __PACKDIR__/bin/prodigal 2>&1'
       bin_dir: '/bin'
       key: 'prodigal_dir'
@@ -161,7 +161,7 @@ packages:
        - '3.1b1'
        - '3.0'
       version_test: "__BINARY__  -h 2>&1|grep HMMER|awk '{print $3}'"
-      tarball: 'hmmer-3.1b1.tar.gz'
+      inst_source: 'hmmer-3.1b1.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/hmmer3/hmmer-3.1b1/; ./configure --prefix=__PACKDIR__ 2>&1;  make -j 2 2>&1; make install 2>&1'
       bin_dir: '/bin'
       key: 'hmmer3_dir'
@@ -172,14 +172,14 @@ packages:
         - '1.2'
       version_test: "__BINARY__ -v 2>&1|awk '{print $3}'|sed 's/,//'"
       build_cmd: 'cd __BBDIR__/../src/rnammer; cd ..; mv -v rnammer __PACKDIR__/ 2>&1;'
-      tarball: 'rnammer-1.2.src.tar.Z'
+      inst_source: 'rnammer-1.2.src.tar.Z'
       bin_dir: '/rnammer'
       key: 'rnammer_dir'
     - name: 'mummer'
       version_test: "__BINARY__ --version 2>&1|grep version|awk '{print $5}'"
       version:
         - 3.1
-      tarball: 'MUMmer3.23.tar.gz'
+      inst_source: 'MUMmer3.23.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/mummer/MUMmer3.23 __BBDIR__/../packages/mummer; cd __BBDIR__/../packages/mummer; make -j 2 2>&1; cd ..;'
       bin_dir: '/mummer'
       binary: 'nucmer'
@@ -189,7 +189,7 @@ packages:
       version: 
         - '1.1rc4'
       version_test: "__BINARY__  -h 2>&1|grep INFERNAL|awk '{print $3}'"
-      tarball: 'infernal-1.1rc4.tar.gz'
+      inst_source: 'infernal-1.1rc4.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/infernal/infernal-1.1rc4; ./configure --prefix=__PACKDIR__/ 2>&1; make -j 2 2>&1; make install 2>&1'
       bin_dir: '/bin'
       key: 'infernal_dir'
@@ -201,8 +201,8 @@ packages:
         - '2.2.28+'
         - '2.2.27+'
       version_test: "__BINARY__  -version 2>&1|grep blastn:|awk '{print $2}'"
-      #tarball: 'ncbi-blast-2.2.28+-src.tar.gz'
-      tarball: 'ncbi-blast-2.2.31+-x64-linux.tar.gz'
+      #inst_source: 'ncbi-blast-2.2.28+-src.tar.gz'
+      inst_source: 'ncbi-blast-2.2.31+-x64-linux.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/blast/ncbi-blast-2.2.31+ __PACKDIR__/ncbi-blast' 
       bin_dir: '/ncbi-blast/bin'
       key: 'blast_dir'
@@ -212,7 +212,7 @@ packages:
       version: 
         - '0.7.5a-r405'
       version_test: "__BINARY__  2>&1|grep Version|awk '{print $2'}"
-      tarball: 'bwa-0.7.5a.tar.bz2'
+      inst_source: 'bwa-0.7.5a.tar.bz2'
       build_cmd: 'cd __BBDIR__/../src/bwa/bwa-0.7.5a; make 2>&1; mv -v bwa __PACKDIR__/bin/ 2>&1;'
       bin_dir: '/bin'
       key: 'bwa_dir'
@@ -223,7 +223,7 @@ packages:
         - '22.3'
         - '24.3'
       version_test: "__BINARY__  --help 2>&1|grep tbl2asn|awk '{print $2}'"
-      tarball: 'linux64.tbl2asn.gz'
+      inst_source: 'linux64.tbl2asn.gz'
       build_cmd: 'mv -f __BBDIR__/../src/tbl2asn __PACKDIR__/bin/ 2>&1; chmod +x __PACKDIR__/bin/tbl2asn'
       bin_dir: '/bin'
       key: 'tbl2asn_dir'
@@ -234,7 +234,7 @@ packages:
         - '1.9.0'
         - '1.3.4'
       version_test: "__BINARY__ --version|grep ABYSS|awk '{print $3}'"
-      tarball: 'abyss-1.9.0.tar.gz'
+      inst_source: 'abyss-1.9.0.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/abyss/abyss-1.9.0; wget http://downloads.sourceforge.net/project/boost/boost/1.56.0/boost_1_56_0.tar.bz2; tar jxf boost_1_56_0.tar.bz2; ./configure --without-sparsehash --prefix=__PACKDIR__ 2>&1; make 2>&1; make install 2>&1;'
       bin_dir: '/bin'
       key: 'abyss_dir'
@@ -246,14 +246,14 @@ packages:
         - 'v.3.6.0'
         - 'v.2.3.0'
       version_test: "__BINARY__ 2>&1|grep 'SPAdes genome assembler'|awk '{print $4}'"
-      tarball: 'SPAdes-3.6.1-Linux.tar.gz'
+      inst_source: 'SPAdes-3.6.1-Linux.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/spades/SPAdes-3.6.1-Linux; mv -v bin/* __PACKDIR__/bin/ 2>&1; mv -v share/* __PACKDIR__/share/ 2>&1'
       bin_dir: '/bin'
       key: 'spades_dir'
       download_url: 'http://bioinf.spbau.ru/spades'
     - name: 'celera'
       download_url: 'http://sourceforge.net/projects/wgs-assembler/files/wgs-assembler/wgs-8.3/wgs-8.3rc2.tar.bz2'
-      tarball: 'wgs-8.3rc2.tar.bz2'
+      inst_source: 'wgs-8.3rc2.tar.bz2'
       version:
         -  '8.3rc2'
       build_cmd: 'cd __BBDIR__/../src/celera/wgs-8.3rc2/kmer; make 2>&1; make install 2>&1; cd ../src ; make 2>&1; cd ../..; mv -v __BBDIR__/../src/celera/wgs-8.3rc2 __PACKDIR__/celera 2>&1'
@@ -267,7 +267,7 @@ packages:
         - '[GapFiller_v1-10]'
       version_test: "__BINARY__  2>&1 |grep Usage|awk '{print $3}'"
       download_url: "http://www.baseclear.com/genomics/bioinformatics/basetools/gapfiller"
-      tarball: '39GapFiller_v1-10_linux-x86_64.tar.gz'
+      inst_source: '39GapFiller_v1-10_linux-x86_64.tar.gz'
       build_cmd: 'dos2unix __BBDIR__/../src/gapfiller/GapFiller_v1-10_linux-x86_64/GapFiller.pl 2>&1; mv -v __BBDIR__/../src/gapfiller/GapFiller_v1-10_linux-x86_64 __PACKDIR__/gapfiller 2>&1;'
       bin_dir: '/gapfiller'
       key: 'gapfiller_dir'
@@ -279,14 +279,14 @@ packages:
       key: 'sspace_dir'
       download_url: 'http://www.baseclear.com/genomics/bioinformatics/basetools/SSPACE'
       binary: 'SSPACE_Standard_v3.0.pl'
-      tarball: '41SSPACE-STANDARD-3.0_linux-x86_64.tar.gz'
+      inst_source: '41SSPACE-STANDARD-3.0_linux-x86_64.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/sspace/SSPACE-STANDARD-3.0_linux-x86_64 __PACKDIR__/sspace 2>&1'
       bin_dir: '/sspace'
     - name: 'asn2gb'
       download_url: 'ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_platform/linux64/asn2gb.linux64.gz'
       bin_dir: '/bin'
       binary: 'asn2gb'
-      tarball: 'linux64.asn2gb.gz'
+      inst_source: 'linux64.asn2gb.gz'
       key: 'asn2gb_dir'
       build_cmd: 'mv -v __BBDIR__/../src/asn2gb __PACKDIR__/bin/ 2>&1; chmod +x __PACKDIR__/bin/asn2gb'
       version_test: "__BINARY__ --help|grep ^asn2gb|awk '{print $2}'"
@@ -294,7 +294,7 @@ packages:
         - 16.6
     - name: 'amos' 
       binary: 'toAmos'
-      tarball: 'amos-3.1.0.tar.gz'
+      inst_source: 'amos-3.1.0.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/amos/amos-3.1.0/; patch --verbose src/Align/find-tandem.cc ../../find-tandem.patch; ./configure --with-qmake-qt4=/usr/lib64/qt4/bin/qmake --prefix=/__PACKDIR__/amos; make -j 2 2>&1 ; make install 2>&1;'
       bin_dir: '/amos/bin'
       key: 'amos_dir'
@@ -302,7 +302,7 @@ packages:
     - name: 'batik' 
       lib_dir: 'lib/batik'
       lib: 'batik-1.8.jar'
-      tarball: 'batik-bin-1.8.tar.gz'
+      inst_source: 'batik-bin-1.8.tar.gz'
       download_url: "https://xmlgraphics.apache.org/batik/download.html"
       build_cmd: 'mv -v __BBDIR__/../src/batik/batik-1.8 __PACKDIR__/lib/batik'
       key: 'batik_dir'
@@ -311,7 +311,7 @@ packages:
       version_test: "ls __BBDIR__/packages/lib/batik|grep batik-[0-9].[0-9].jar|sed 's/batik-//'|sed 's/.jar//'"
     - name: 'circleator'
       download_url: 'http://jonathancrabtree.github.io/Circleator/'
-      tarball: '1.0.0rc4.tar.gz'
+      inst_source: '1.0.0rc4.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/circleator/Circleator-1.0.0rc4; perl ./Build.PL --install_base __PACKDIR__/; ./Build; ./Build install;'
       bin_dir: 'circleator'
       binary: 'circleator'
@@ -320,13 +320,13 @@ packages:
       version:
         - 1.0.0rc4
     - name: 'masurca'
-      tarball: 'MaSuRCA-3.2.1_10012016.tar.gz'
+      inst_source: 'MaSuRCA-3.2.1_10012016.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/masurca/MaSuRCA-3.2.1_10012016; DEST=__PACKDIR__ ./install.sh'
       bin_dir: 'masurca/bin'
       binary: 'masurca'
       key: 'masurca_dir'
     - name: 'gfinisher'
-      tarball: 'GenomeFinisher_1.4.zip'
+      inst_source: 'GenomeFinisher_1.4.zip'
       build_cmd: 'mkdir -v __PACKDIR__lib/gfinisher; mv -v __BBDIR__/../src/gfinisher/GenomeFinisher.jar __PACKDIR__/lib/gfinisher'
       lib_dir: 'lib/gfinisher'
       lib: 'GenomeFinisher.jar'
@@ -339,9 +339,17 @@ packages:
       version:
         - '1.20'
       download_url: 'https://github.com/broadinstitute/pilon/releases'
-      tarball: 'pilon.jar'
+      inst_source: 'pilon.jar'
       build_cmd: 'mkdir -v __PACKDIR__/lib/pilon; cp -v __BBDIR__/../src/pilon.jar __PACKDIR__/lib/pilon/pilon.jar'
       lib_dir: 'lib/pilon'
       lib: 'pilon.jar'
       version_test: "java -jar __BINARY__/pilon.jar |head -n1|awk '{print $3}'"
       key: 'pilon_dir'
+    - name: vcflib
+      version:
+        - 1.0.0-rc1
+      inst_source: 'git'
+      build_cmd: "cd __BBDIR__/../src/; git clone --recursive https://github.com/vcflib/vcflib.git; cd __BBDIR__/../src/vcflib/; make openmp; mv -v __BBDIR__/../src/vcflib/ __PACKDIR__/vcflib"
+      key: 'vcflib_dir'
+      bin_dir: 'vcflib/bin'
+      binary: 'vcffilter'

@@ -70,6 +70,8 @@ of the 'default_args' setting in the scaffolder configuration
 
 =item B<finisher>: Method for assembly finishing/gap closure
 
+=item B<varcall>: Method for variant calling
+
 =item B<insert-size>: Size of insert in paired-read library. This will be determined empircally if a reference
 genome sequence is provided, so only needs specifying when assembling paired-read sequences for
 which no reference genome is available.
@@ -185,7 +187,7 @@ set_paths($config);
          $help,         $man,            $reference,  $fastq1,          $fastq2,   $long_fastq,
          @assemblers,   @assembler_args, $scaffolder, $scaffolder_args, $platform, $insert_size,
          $stddev,       $downsample,     $locustag,   $centre,          $keepall,  $prefix,
-         $cmd_gap_fill, $merge_method,   $finisher,
+         $cmd_gap_fill, $merge_method,   $finisher,   $varcall,
        );
 
     my $mode         = 'submission';
@@ -197,7 +199,7 @@ set_paths($config);
     my $trim_qv      = 20;
     my $trim_length  = 50;
     my $split_origin = 1;
-    my $threads      = 1;
+    my $threads      = 8;
     my $genome_size  = 0;
     my $out_dir      = undef;
     my $tmpdir       = undef;
@@ -227,6 +229,7 @@ set_paths($config);
                              'scaffolder-args:s' => \$scaffolder_args,
                              'merge-method:s'    => \$merge_method,
                              'finisher:s'        => \$finisher,
+                             'varcall:s'         => \$varcall,
                              'insert-size:s'     => \$insert_size,
                              'insert-stddev:s'   => \$stddev,
                              'genome-size:s'     => \$genome_size,
@@ -253,6 +256,7 @@ set_paths($config);
     $scaffolder   = lc($scaffolder)   if ($scaffolder);
     $merge_method = lc($merge_method) if ($merge_method);
     $finisher     = lc($finisher)     if ($finisher);
+    $varcall      = lc($varcall)      if ($varcall);
     $platform     = lc($platform)     if ($platform);
 
     die "\nUnknown argument: @ARGV" if "@ARGV";
@@ -316,13 +320,14 @@ set_paths($config);
     die "\nPlease supply a genome size or reference sequence when running a long-read assembly"
       if ( $type eq 'long' && ( !$genome_size && !$reference ) );
 
-    my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method, $sel_finisher ) =
-      select_tools( $config, \@assemblers, $scaffolder, $merge_method, $finisher,
-                    $paired, $reference,   $type,       $mean_read_length );
+    my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method, $sel_finisher, $sel_varcall ) =
+      select_tools( $config,  \@assemblers, $scaffolder, $merge_method, $finisher,
+                    $varcall, $paired,      $reference,  $type,         $mean_read_length );
     @assemblers   = @$sel_assemblers;
     $scaffolder   = $sel_scaffolder;
     $merge_method = $sel_merge_method;
     $finisher     = $sel_finisher;
+    $varcall      = $sel_varcall;
 
     # pull downsampling attribute from assembler configuration
     my $assembler_conf_downsample = 0;
@@ -386,6 +391,7 @@ set_paths($config);
     $tb->addRow( "Selected assembly merger", $merge_method ) if ($merge_method);
     $tb->addRow( "Selected scaffolder",      $scaffolder ) if ($scaffolder);
     $tb->addRow( "Selected finisher",        $finisher ) if ($finisher);
+    $tb->addRow( "Selected variant caller",  $varcall ) if ($varcall);
     $tb->addRow( "Trim QV",                  $trim_qv ) if ($trim_reads);
     $tb->addRow( "Trim length",              $trim_length ) if ($trim_reads);
     $tb->addRow( "Split Origin",             $split_origin );
@@ -411,7 +417,7 @@ set_paths($config);
                        $platform, $mean_read_length, $insert_size, $stddev
                      );
 
-        $pm->finish();
+        #    $pm->finish();
     }
 
     #$pm->wait_all_children;
@@ -462,6 +468,7 @@ set_paths($config);
     #}
 
     my $gaps;
+
     if ( -e "$tmpdir/scaffolds.fasta" ) {
         $gaps = build_agp( $tmpdir, $organism, $mode, $scaffold_type );
     }
@@ -496,6 +503,8 @@ set_paths($config);
         get_contig_to_iid_mapping($tmpdir);
         $amosvalidate_results = summarise_amosvalidate($tmpdir);
     }
+
+    run_varcaller( $tmpdir, $varcall, $threads, $mean_read_length ) if ($varcall);
     merge_annotations( $tmpdir, $amosvalidate_results, $gaps, $genus, $species, $strain );
     run_circleator( $tmpdir, $organism );
 
@@ -615,6 +624,7 @@ sub set_paths {
 #                  $ (name of requested scaffolder)
 #                  $ (name of requested merge tool)
 #                  $ (name of requested finishing tool)
+#                  $ (name of requested variant caller)
 #                  $ (paired - flag to indicate we are using paired reads
 #                  $ (reference - indicates a reference has been provided)
 #                  $ (type - category of sequence i.e. short_illumina)
@@ -632,6 +642,7 @@ sub select_tools {
     my $scaffolder  = shift;
     my $merger      = shift;
     my $finisher    = shift;
+    my $varcall     = shift;
     my $paired      = shift;
     my $reference   = shift;
     my $type        = shift;
@@ -750,7 +761,25 @@ sub select_tools {
         }
     }
 
-    return ( \@assemblers, $scaffolder, $merger, $finisher );
+    my @available_varcallers = map { $_->[0] }
+      sort { $a->[1] <=> $b->[1] }
+      map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'varcallers'} };
+
+    if ($varcall) {
+        unless ( grep ( /^$varcall$/i, @available_varcallers ) ) {
+            die "\nError: $varcall is not a valid variant caller\n\n" . "The following tools are configured: ",
+              join( ", ", @available_varcallers ), "\n\n";
+        }
+        my $conf_varcallers = $config->{'varcallers'};
+        foreach my $conf_varcaller (@$conf_varcallers) {
+            my $name = lc( $conf_varcaller->{'name'} );
+            if ( $name eq $varcall ) {
+                die "Error: $varcall requires a reference sequence" unless ($reference);
+            }
+        }
+    }
+
+    return ( \@assemblers, $scaffolder, $merger, $finisher, $varcall );
 
 }
 
@@ -948,7 +977,7 @@ sub return_results {
     else {
         my @files = qw(annotated.embl contigs.fasta scaffolds.fasta scaffolds.embl scaffolds.agp
           unplaced_contigs.fasta BugBuilder.log read1_fastqc.html read2_fastqc.html
-          circleator.png circleator.svg
+          circleator.png circleator.svg reference.variants.vcf
           );
 
         opendir TMP, "$tmpdir" or die "Error opening $tmpdir: $!";
@@ -3036,6 +3065,130 @@ sub store_orientation {
         $orientations->{$contig} = '-';
     }
 
+}
+
+######################################################################
+#
+# run_varcaller
+#
+# Carries out variant calling using requested variant caller
+#
+# required params: $ (tmpdir)
+#                  $ (varcall)
+#                  $ (no. threads)
+#                  $ (read length)
+#
+# returns        : $ (0)
+#
+######################################################################
+
+sub run_varcaller {
+
+    my $tmpdir      = shift;
+    my $varcall     = shift;
+    my $threads     = shift;
+    my $read_length = shift;
+
+    message("Running variant calling ($varcall)...");
+
+    my ( $cmd, $caller_cmd, $create_dir );
+    my $varcallers = $config->{'varcallers'};
+    foreach my $caller (@$varcallers) {
+        my $name = $caller->{'name'};
+        if ( $name eq $varcall ) {
+            $caller_cmd = $caller->{'command'};
+            $create_dir = $caller->{'create_dir'};
+        }
+    }
+    my $vardir = "$tmpdir/var_${varcall}/";
+    if ($create_dir) {
+        mkdir "$tmpdir/var_${varcall}" or die "Error creating $tmpdir/var_${varcall}: $! ";
+        chdir "$tmpdir/var_${varcall}" or die "Error chdiring to $tmpdir/var_${varcall}: $!";
+    }
+
+    symlink( "$tmpdir/reference_parsed_ids.fasta", "$vardir/reference.fasta" )
+      or die "Error creating $vardir/reference.fasta symlink: $!";
+    $cmd = $config->{'bwa_dir'} . symlink( "$tmpdir/read1.fastq", "$vardir/read1.fastq" )
+      or die "Error creating symlink: $! ";
+    symlink( "$tmpdir/read2.fastq", "$vardir/read2.fastq" )
+      if ( -e "$tmpdir/read2.fastq" )
+      or die "Error creating symlink: $! ";
+
+    print "BWA aligning reads to assembly...\n";
+    my $samtools_dir = $config->{'samtools_dir'};
+
+    $cmd = $config->{'bwa_dir'} . "/bwa index $vardir/reference.fasta >$vardir/bwa_index.log 2>&1";
+    system($cmd) == 0 or die " Error running $cmd";
+
+    # Use bwa-bwt for 'short' reads less than 100 bp, and bwa-mem for longer reads
+    if ( $read_length <= 100 ) {
+        $cmd =
+            $config->{'bwa_dir'}
+          . "/bwa aln -t $threads $vardir/reference.fasta $vardir/read1.fastq > $vardir/read1.sai"
+          . " 2> $vardir/bwa_sai1.log";
+        system($cmd) == 0 or die "Error running $cmd";
+        if ( -e "$vardir/read2.fastq" ) {
+            $cmd =
+                $config->{'bwa_dir'}
+              . "/bwa aln -t $threads $vardir/reference.fasta $vardir/read2.fastq > $vardir/read2.sai"
+              . " 2> $vardir/bwa_sai2.log";
+            system($cmd) == 0 or die "Error running $cmd";
+            $cmd =
+                $config->{'bwa_dir'}
+              . "/bwa sampe $vardir/reference.fasta $vardir/read1.sai $vardir/read2.sai "
+              . "$vardir/read1.fastq $vardir/read2.fastq";
+            $cmd .= " 2> $vardir/sampe.log > $vardir/scaffolds.sam";
+            system($cmd) == 0 or die "Error running $cmd";
+        }
+        else {
+            $cmd = $config->{'bwa_dir'} . "/bwa samse $vardir/reference.fasta $vardir/read1.sai $vardir/read1.fastq";
+            $cmd .= "2> $vardir/samse.log > $vardir/scaffolds.sam";
+            system($cmd) == 0 or die "Error running $cmd";
+        }
+    }
+    else {
+        if ( !-e "$vardir/read2.fastq" ) {
+
+            # single-ended long reads
+            $cmd =
+                $config->{'bwa_dir'}
+              . "/bwa mem -t $threads -M $vardir/reference.fasta $vardir/read1.fastq > reference.sam "
+              . "2>$vardir/bwa_mem.log";
+            system($cmd) == 0 or die "Error running $cmd: $!";
+        }
+        else {
+
+            # paired-end long reads
+            $cmd =
+                $config->{'bwa_dir'}
+              . "/bwa mem -t $threads -M $vardir/reference.fasta $vardir/read1.fastq $vardir/read2.fastq >reference.sam "
+              . "2>$vardir/bwa_mem.log";
+            system($cmd) == 0 or die "Error running $cmd: $!";
+        }
+    }
+
+    $cmd = "$samtools_dir/samtools view -q 10 -Sb $vardir/reference.sam 2>$vardir/samtoolsview.log"
+      . "|$samtools_dir/samtools sort - $vardir/reference";
+    system($cmd) == 0 or die "Error running $cmd";
+
+    $cmd = "$samtools_dir/samtools index $vardir/reference.bam 2>$vardir/samtools_index.log";
+    system($cmd) == 0 or die "Error running $cmd";
+
+    $caller_cmd =~ s/__BUGBUILDER_BIN__/$FindBin::Bin/;
+    $caller_cmd =~ s/__TMPDIR__/$tmpdir/;
+    $caller_cmd =~ s/__THREADS__/$threads/;
+
+    system($caller_cmd) == 0 or die "Error running $cmd: $!";
+    chdir $tmpdir            or die " Error chdiring to $tmpdir: $! ";
+
+    symlink( "$vardir/var.filtered.vcf", "$tmpdir/reference.variants.vcf" )
+      or die "Error creating $tmpdir/reference.variants.vcf: $!";
+    my $varcount = `grep -vc ^# $tmpdir/reference.variants.vcf`;
+    chomp $varcount;
+
+    print "\nIdentified $varcount variants...\n";
+
+    return (0);
 }
 
 ######################################################################

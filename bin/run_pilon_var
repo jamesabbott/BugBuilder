@@ -1,0 +1,101 @@
+#!/bin/env perl
+
+######################################################################
+#
+# BugBuilder wrapper wrapper for variant detection with pilon
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_pilon_var
+
+=head1 SYNOPSIS
+
+run_pilon _var--tmpdir BugBuilder_working_directory [n] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for running pilon as a variant caller within BugBuilder
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory
+
+=item B<threads>: number of parallel threads to use
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my ( $help, $man, $tmpdir );
+    my $threads = 1;
+
+    my $result = GetOptions(
+                             'tmpdir=s'  => \$tmpdir,
+                             'threads:s' => \$threads,
+                             'help'      => \$help,
+                             'man'       => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir );
+
+    my $pilon_dir  = $config->{'pilon_dir'};
+    my $vcflib_dir = $config->{'vcflib_dir'};
+    my $java       = $config->{'java'};
+
+    my $cmd =
+        "${java} -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/var_pilon/reference.fasta"
+      . " --bam ${tmpdir}/var_pilon/reference.bam --variant --vcf --output var "
+      . "--threads $threads >${tmpdir}/var_pilon/pilon.log 2>&1";
+    system($cmd) == 0 or die "Error running pilon";
+
+    $cmd = "cat ${tmpdir}/var_pilon/var.vcf|$vcflib_dir/vcffilter -g 'GT = 1/1'|$vcflib_dir/vcffixup - "
+      . "|$vcflib_dir/vcffilter -f 'AC > 0'> ${tmpdir}/var_pilon/var.filtered.vcf";
+    system($cmd) == 0 or die "Error running pilon";
+
+}
