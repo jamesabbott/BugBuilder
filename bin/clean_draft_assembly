@@ -1,0 +1,94 @@
+#!/bin/env perl
+
+######################################################################
+#
+# clean_draft_assembly
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+clean_draft_assembly
+
+=head1 SYNOPSIS
+
+clean_draft_assembly --in [scaffolds.embl] [--help]
+
+=head1 DESCRIPTION
+
+Script for removing amosvalidate features from draft mode assemblies
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<in>: EMBL format annotated assembly file
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott
+
+Email j.abbott@imperial.ac.uk
+
+=cut
+
+use warnings;
+use strict;
+
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my ( $in, $help, $man );
+
+    my $threads = 1;
+
+    my $result = GetOptions(
+                             'in=s' => \$in,
+                             'help' => \$help,
+                             'man'  => \$man,
+                           );
+
+    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$in );
+    croak "\nInput file $in does not exist\n" unless ( -e $in );
+
+    my $out = $in;
+    $out =~ s/\.embl/\.clean\.embl/;
+    my $inIO  = Bio::SeqIO->new( -format => 'embl', -file => $in );
+    my $outIO = Bio::SeqIO->new( -format => 'embl', -file => ">$out" );
+
+    while ( my $embl_record = $inIO->next_seq() ) {
+        my @features = $embl_record->remove_SeqFeatures();
+        foreach my $feature (@features) {
+            $embl_record->add_SeqFeature($feature) unless ( $feature->primary_tag eq 'misc_feature' );
+        }
+        $outIO->write_seq($embl_record);
+    }
+}
