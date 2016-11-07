@@ -3001,7 +3001,7 @@ sub run_varcaller {
     system($caller_cmd) == 0 or die "Error running $cmd: $!";
     chdir $tmpdir            or die " Error chdiring to $tmpdir: $! ";
 
-    symlink( "$vardir/var.filtered.vcf", "$tmpdir/reference.variants.vcf" )
+    symlink( "var_${varcall}/var.filtered.vcf", "reference.variants.vcf" )
       or die "Error creating $tmpdir/reference.variants.vcf: $!";
     my $varcount = `grep -vc ^# $tmpdir/reference.variants.vcf`;
     chomp $varcount;
