@@ -30,6 +30,7 @@
 ######################################################################
 ---
 packages:  
+
     - name: 'fastqc'
       download_url: 'http://www.bioinformatics.babraham.ac.uk/projects/fastqc/'
       inst_source: 'fastqc_v0.11.4.zip'
@@ -40,6 +41,7 @@ packages:
       binary: 'fastqc'
       key: 'fastqc_dir'
       version_test: "__BINARY__ -v |awk '{print $2}'"
+
     - name:  'sickle'
       binary: 'sickle'
       version_test: "__BINARY__ --version 2>&1|grep version|cut -d' ' -f 3"
@@ -51,6 +53,7 @@ packages:
       bin_dir: '/bin'
       key: 'sickle_dir'
       download_url: 'https://github.com/najoshi/sickle'
+
     - name: 'seqtk'
       download_url: 'https://github.com/lh3/seqtk/archive/seqtk-1.0.tar.gz'
       inst_source: 'seqtk-1.0.tar.gz'
@@ -61,6 +64,7 @@ packages:
       version_test: "__BINARY__ 2>&1|grep Version|awk '{print $2}'"
       version:
         - '1.0-r31'
+
     - name: 'samtools'
       binary:  'samtools'
       version_test: "__BINARY__ 2>&1|grep Version|cut -d' ' -f 2"
@@ -74,6 +78,7 @@ packages:
       download_url: 'http://samtools.sourceforge.net/'
       bin_dir: '/bin' 
       key: 'samtools_dir'
+
     - name: 'picard' 
       inst_source: 'picard-tools-1.140.zip'
       build_cmd: 'mkdir -v __PACKDIR__/lib/picard; mv -v __BBDIR__/../src/picard/picard-tools-1.140/* __PACKDIR__/lib/picard'
@@ -84,6 +89,7 @@ packages:
       version_test: "java -jar __BINARY__/picard.jar ViewSam --version 2>&1|cut -d '(' -f 1"
       version: 
         - 1.140
+
     - name: 'sis'
       binary: 'sis.py'
       version: 
@@ -94,6 +100,7 @@ packages:
       bin_dir: '/bin'
       key: 'sis_dir'
       download_url: 'http://marte.ic.unicamp.br:8747/'
+
     - name: 'mauve'
       lib_dir: 'mauve'
       lib: 'Mauve.jar'
@@ -102,6 +109,7 @@ packages:
       inst_source: 'mauve_linux_snapshot_2015-02-13.tar.gz'
       download_url: 'http://darlinglab.org/mauve/'
       key: 'mauve_dir'
+
     - name: 'R'
       binary: 'R'
       version: 
@@ -113,6 +121,7 @@ packages:
       bin_dir: 'R/bin'
       key: 'R_dir'
       download_url: 'http://www.r-project.org'
+
     - name: 'barrnap'
       version:
         -  '0.6'
@@ -123,6 +132,7 @@ packages:
       version_test: "__BINARY__  2>&1|grep rapid|awk '{print $2}'"
       key: "barrnap_dir"
       download_url: "http://www.vicbioinformatics.com/software.barrnap.shtml"
+
     - name: 'prokka'
       binary: 'prokka'
       version: 
@@ -134,6 +144,7 @@ packages:
       bin_dir: '/prokka/bin'
       key: 'prokka_dir'
       download_url: 'http://www.vicbioinformatics.com/software.prokka.shtml'
+
     - name: 'aragorn'
       binary: 'aragorn'
       version: 
@@ -145,6 +156,7 @@ packages:
       bin_dir: '/bin'
       key: 'aragorn_dir'
       download_url: 'http://mbio-serv2.mbioekol.lu.se/ARAGORN/'
+
     - name: 'prodigal'
       binary: 'prodigal'
       version: 
@@ -155,6 +167,7 @@ packages:
       bin_dir: '/bin'
       key: 'prodigal_dir'
       download_url: 'http://prodigal.ornl.gov'
+
     - name: 'hmmer3'
       binary: 'hmmsearch'
       version: 
@@ -166,6 +179,7 @@ packages:
       bin_dir: '/bin'
       key: 'hmmer3_dir'
       download_url: 'http://hmmer.janelia.org'
+
     - name: 'rnammer'
       binary: 'rnammer'
       version: 
@@ -175,6 +189,7 @@ packages:
       inst_source: 'rnammer-1.2.src.tar.Z'
       bin_dir: '/rnammer'
       key: 'rnammer_dir'
+
     - name: 'mummer'
       version_test: "__BINARY__ --version 2>&1|grep version|awk '{print $5}'"
       version:
@@ -184,6 +199,7 @@ packages:
       bin_dir: '/mummer'
       binary: 'nucmer'
       key: 'mummer_dir'
+
     - name: 'infernal'
       binary: 'cmscan'
       version: 
@@ -194,6 +210,7 @@ packages:
       bin_dir: '/bin'
       key: 'infernal_dir'
       download_url: 'http://infernal.janelia.org'
+
     - name: 'blast'
       binary: 'blastn'
       version: 
@@ -207,6 +224,7 @@ packages:
       bin_dir: '/ncbi-blast/bin'
       key: 'blast_dir'
       download_url: 'http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download'
+
     - name: 'bwa'
       binary: 'bwa'
       version: 
@@ -217,6 +235,7 @@ packages:
       bin_dir: '/bin'
       key: 'bwa_dir'
       download_url: 'http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download'
+
     - name: 'tbl2asn'
       binary: 'tbl2asn'
       version: 
@@ -228,6 +247,7 @@ packages:
       bin_dir: '/bin'
       key: 'tbl2asn_dir'
       download_url: 'ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_program/tbl2asn/'
+
     - name: 'abyss'
       binary: 'ABYSS'
       version:
@@ -239,6 +259,7 @@ packages:
       bin_dir: '/bin'
       key: 'abyss_dir'
       download_url: 'http://www.bcgsc.ca/platform/bioinfo/software/abyss'
+
     - name: 'spades'
       binary: 'spades.py'
       version: 
@@ -251,6 +272,7 @@ packages:
       bin_dir: '/bin'
       key: 'spades_dir'
       download_url: 'http://bioinf.spbau.ru/spades'
+
     - name: 'celera'
       download_url: 'http://sourceforge.net/projects/wgs-assembler/files/wgs-assembler/wgs-8.3/wgs-8.3rc2.tar.bz2'
       inst_source: 'wgs-8.3rc2.tar.bz2'
@@ -261,6 +283,7 @@ packages:
       binary: 'runCA'
       version_test: "__BINARY__ -version 2>&1|grep version|awk '{print $3}'|sort -u"
       key: 'celera_dir'
+
     - name: 'gapfiller'
       binary: 'GapFiller.pl'
       version: 
@@ -271,6 +294,7 @@ packages:
       build_cmd: 'dos2unix __BBDIR__/../src/gapfiller/GapFiller_v1-10_linux-x86_64/GapFiller.pl 2>&1; mv -v __BBDIR__/../src/gapfiller/GapFiller_v1-10_linux-x86_64 __PACKDIR__/gapfiller 2>&1;'
       bin_dir: '/gapfiller'
       key: 'gapfiller_dir'
+
     - name:  'sspace'
       binary: 'SSPACE_v3-0.pl'
       version: 
@@ -282,6 +306,7 @@ packages:
       inst_source: '41SSPACE-STANDARD-3.0_linux-x86_64.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/sspace/SSPACE-STANDARD-3.0_linux-x86_64 __PACKDIR__/sspace 2>&1'
       bin_dir: '/sspace'
+
     - name: 'asn2gb'
       download_url: 'ftp://ftp.ncbi.nih.gov/toolbox/ncbi_tools/converters/by_platform/linux64/asn2gb.linux64.gz'
       bin_dir: '/bin'
@@ -292,6 +317,7 @@ packages:
       version_test: "__BINARY__ --help|grep ^asn2gb|awk '{print $2}'"
       version:
         - 16.6
+
     - name: 'amos' 
       binary: 'toAmos'
       inst_source: 'amos-3.1.0.tar.gz'
@@ -299,12 +325,14 @@ packages:
       bin_dir: '/amos/bin'
       key: 'amos_dir'
       download_url: 'http://amos.sourceforge.net'
+
     - name: 'masurca'
       inst_source: 'MaSuRCA-3.2.1_10012016.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/masurca/MaSuRCA-3.2.1_10012016; DEST=__PACKDIR__ ./install.sh'
       bin_dir: 'masurca/bin'
       binary: 'masurca'
       key: 'masurca_dir'
+
     - name: 'gfinisher'
       inst_source: 'GenomeFinisher_1.4.zip'
       build_cmd: 'mkdir -v __PACKDIR__lib/gfinisher; mv -v __BBDIR__/../src/gfinisher/GenomeFinisher.jar __PACKDIR__/lib/gfinisher'
@@ -315,6 +343,7 @@ packages:
       version_test: "java -jar __BINARY__/GenomeFinisher.jar -h|head -n1 | awk '{print $5}'"
       key: 'gfinisher_dir' 
       download_url: 'https://sourceforge.net/projects/gfinisher/files'
+
     - name: 'pilon'
       version:
         - '1.20'
@@ -325,6 +354,7 @@ packages:
       lib: 'pilon.jar'
       version_test: "java -jar __BINARY__/pilon.jar |head -n1|awk '{print $3}'"
       key: 'pilon_dir'
+
     - name: vcflib
       version:
         - 1.0.0-rc1
@@ -333,9 +363,10 @@ packages:
       key: 'vcflib_dir'
       bin_dir: 'vcflib/bin'
       binary: 'vcffilter'
+
     - name: 'cgview'
       download_url: 'http://wishart.biology.ualberta.ca/cgview/application/cgview.zip'
-      tarball: 'cgview.zip'
+      inst_source: 'cgview.zip'
       build_cmd:  'mv -f __BBDIR__/../src/cgview/cgview __PACKDIR__'
       lib: 'cgview.jar'
       lib_dir: '__PACKDIR__/'
