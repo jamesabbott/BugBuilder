@@ -407,7 +407,6 @@ set_paths($config);
     $link = 1 if ( $#assemblers == 0 );
     for ( my $i = 0 ; $i <= $#assemblers ; $i++ ) {
 
-        #$pm->start and next();
         my $assembler = $assemblers[$i];
         my $args      = $assembler_args[$i];
 
@@ -416,11 +415,8 @@ set_paths($config);
                        $link,     $type,             $encoding,    $genome_size,
                        $platform, $mean_read_length, $insert_size, $stddev
                      );
-
-        #    $pm->finish();
     }
 
-    #$pm->wait_all_children;
     merge_assemblies( $tmpdir, \@assemblers, $merge_method ) if ( $#assemblers == 1 );
 
     my $scaffold_type = 'paired-ends'
@@ -484,7 +480,7 @@ set_paths($config);
 
     run_varcaller( $tmpdir, $varcall, $threads, $mean_read_length ) if ($varcall);
     merge_annotations( $tmpdir, $amosvalidate_results, $gaps, $genus, $species, $strain );
-    run_circleator( $tmpdir, $organism );
+    run_cgview( $tmpdir );
 
     build_comparisons( $tmpdir, basename($reference), $organism ) if ($reference);
 
@@ -955,7 +951,7 @@ sub return_results {
     else {
         my @files = qw(annotated.embl contigs.fasta scaffolds.fasta scaffolds.embl scaffolds.agp
           unplaced_contigs.fasta BugBuilder.log read1_fastqc.html read2_fastqc.html
-          circleator.png circleator.svg reference.variants.vcf
+          scaffolds_cgview.png contigs_cgview.png circleator.png circleator.svg reference.variants.vcf
           );
 
         opendir TMP, "$tmpdir" or die "Error opening $tmpdir: $!";
@@ -3326,68 +3322,55 @@ sub merge_annotations {
 
 }
 
+
 ######################################################################
 #
-# run_circleator
+# run_cgview
 #
-# Runs circleator to generate a genome map from the annotations
+# Runs cgview to generate a genome map from the annotations
 #
-# Required parameters:
+# Required parameters: $ (tmpdir)
 #
 # Returns: $ (0)
 #
 ######################################################################
 
-sub run_circleator {
+sub run_cgview {
 
     my $tmpdir   = shift;
-    my $organism = shift;
 
-    my $circleator = $config->{'circleator_dir'} . "/circleator";
+    my $cgview_dir = $config->{'cgview_dir'};
+    my $xml_creator = $cgview_dir . "cgview_xml_builder/cgview_xml_builder.pl";
     my $java       = $config->{'java'};
-    my $batik_dir  = $config->{'batik_dir'};
-    my $batik_jar  = ( File::Find::Rule->file()->name("batik-rasterizer*")->in($batik_dir) )[0];
-    die "Could not find batik rasteier in $batik_dir" if ( $batik_jar !~ /.jar$/ );
 
     message("Creating genome visualisaton...");
 
     chdir $tmpdir      or die "Error chdiring to $tmpdir: $!";
-    mkdir "circleator" or die "Error creating circleator directory: $!";
-    chdir "circleator" or die "Error chdiring to circleator: $!";
+    mkdir "cgview" or die "Error creating cgview directory: $!";
+    chdir "cgview" or die "Error chdiring to cgview $!";
 
-    open TMPL, "$FindBin::Bin/../etc/circleator.cfg.tmpl"
-      or die "Error opening $FindBin::Bin/../etc/circleator.cfg.tmpl: $!";
-    my $template = do { local $/; <TMPL> };
-    close TMPL;
-
-    if ( $organism !~ /unknown/ ) {
-        $organism =~ s/ +/&nbsp;/g;
-        $template .= "\nnew fc1 label 0.07 innerf=0.075,label-text=$organism,font-style=italic,label-type=horizontal\n";
-    }
-    open CFG, ">circleator.cfg" or die "Error opening circleator.cfg: $!";
-    print CFG $template;
-    close CFG;
-
-    my $embl;
+    my ($embl,$outfile);
     if ( -e "../scaffolds.embl" ) {
         $embl = "../scaffolds.embl";
+	$outfile = "scaffolds_cgview.png";
     }
     else {
         $embl = "../contigs.embl";
+	$outfile = "contigs_cgview.png";
     }
 
-    my $cmd = "$circleator --config circleator.cfg --pad=200 --data $embl > circleator.svg 2> circleator.log";
+    my $cmd = "$xml_creator -sequence $embl -output scaffolds_cgview.xml -gc_skew T >xml_creator.log 2>&1";
     system("$cmd") == 0 or die "Error running $cmd: $!";
 
-    $cmd = "$java -Djava.awt.headless=true -jar $batik_jar -m image/png -d . circleator.svg 1>&2 > rasterizer.log";
+	$cmd = "${java} -jar ${cgview_dir}/cgview.jar -f png -i scaffolds_cgview.xml -o $outfile >cgview.log 2>&1";
     system("$cmd") == 0 or die "Error running $cmd: $!";
 
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
-    symlink( "circleator/circleator.svg", "circleator.svg" ) or die "Error creating symlink: $!";
-    symlink( "circleator/circleator.png", "circleator.png" ) or die "Error creating symlink: $!";
+    symlink( "cgview/$outfile", "$outfile" ) or die "Error creating symlink: $!";
 
     return (0);
 }
+
 
 ######################################################################
 #

@@ -1,5 +1,4 @@
 FEATURES
-* Use CGView instead of cirleator? Circleator sometimes produces 'odd' renderings...
 * Reinstate variant calling when reference sequence provided 
 * Add Quast to validation??
 * SMB sharing from VM to ease data transfer

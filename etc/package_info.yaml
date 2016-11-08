@@ -299,26 +299,6 @@ packages:
       bin_dir: '/amos/bin'
       key: 'amos_dir'
       download_url: 'http://amos.sourceforge.net'
-    - name: 'batik' 
-      lib_dir: 'lib/batik'
-      lib: 'batik-1.8.jar'
-      inst_source: 'batik-bin-1.8.tar.gz'
-      download_url: "https://xmlgraphics.apache.org/batik/download.html"
-      build_cmd: 'mv -v __BBDIR__/../src/batik/batik-1.8 __PACKDIR__/lib/batik'
-      key: 'batik_dir'
-      version:
-        - 1.8
-      version_test: "ls __BBDIR__/packages/lib/batik|grep batik-[0-9].[0-9].jar|sed 's/batik-//'|sed 's/.jar//'"
-    - name: 'circleator'
-      download_url: 'http://jonathancrabtree.github.io/Circleator/'
-      inst_source: '1.0.0rc4.tar.gz'
-      build_cmd: 'cd __BBDIR__/../src/circleator/Circleator-1.0.0rc4; perl ./Build.PL --install_base __PACKDIR__/; ./Build; ./Build install;'
-      bin_dir: 'circleator'
-      binary: 'circleator'
-      key: 'circleator_dir'
-      version_test: "__BBDIR__/bin/circleator -v 2>&1|awk '{print  $3}'"
-      version:
-        - 1.0.0rc4
     - name: 'masurca'
       inst_source: 'MaSuRCA-3.2.1_10012016.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/masurca/MaSuRCA-3.2.1_10012016; DEST=__PACKDIR__ ./install.sh'
@@ -353,3 +333,10 @@ packages:
       key: 'vcflib_dir'
       bin_dir: 'vcflib/bin'
       binary: 'vcffilter'
+    - name: 'cgview'
+      download_url: 'http://wishart.biology.ualberta.ca/cgview/application/cgview.zip'
+      tarball: 'cgview.zip'
+      build_cmd:  'mv -f __BBDIR__/../src/cgview/cgview __PACKDIR__'
+      lib: 'cgview.jar'
+      lib_dir: '__PACKDIR__/'
+      key: 'cgview_dir'
