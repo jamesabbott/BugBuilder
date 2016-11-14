@@ -480,15 +480,17 @@ set_paths($config);
 
     run_varcaller( $tmpdir, $varcall, $threads, $mean_read_length ) if ($varcall);
     merge_annotations( $tmpdir, $amosvalidate_results, $gaps, $genus, $species, $strain );
-    run_cgview( $tmpdir );
+    run_cgview($tmpdir);
 
     build_comparisons( $tmpdir, basename($reference), $organism ) if ($reference);
 
     message("Final Assembly Statistics...");
     get_contig_stats( "$tmpdir/contigs.fasta", 'contigs' );
     get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' ) if ( -e "$tmpdir/scaffolds.fasta" );
+	my $emblfile;
+	(-e "$tmpdir/scaffolds.embl") ? ($emblfile = "$tmpdir/scaffolds.embl") : ($emblfile = "$tmpdir/contigs.embl");
 
-    my $io = Bio::SeqIO->new( -format => 'embl', -file => "$tmpdir/scaffolds.embl" );
+    my $io = Bio::SeqIO->new( -format => 'embl', -file => "$emblfile" );
     my ( $cds, $tRNA, $rRNA );
     while ( my $contig = $io->next_seq() ) {
         foreach my $feature ( $contig->get_SeqFeatures() ) {
@@ -2203,7 +2205,6 @@ sub run_scaffolder {
 
 }
 
-
 ######################################################################
 #
 # build_agp
@@ -3181,13 +3182,16 @@ sub merge_annotations {
       or die "Error creating $tmpdir/annotation_merge: $!";
     chdir "$tmpdir/annotation_merge"
       or die "Error chdiring to $tmpdir/annotation_merge: $!";
+    my $filename;
+
+    ( -e "$tmpdir/scaffolds.embl" ) ? ( $filename = "scaffolds.embl" ) : ( $filename = "contigs.embl" );
 
     my $IO = Bio::SeqIO->new( -format => 'embl',
-                              -file   => "$tmpdir/scaffolds.embl" );
+                              -file   => "$tmpdir/$filename" );
 
     my $outIO =
       Bio::SeqIO->new( -format => 'embl',
-                       -file   => ">scaffolds.embl" );
+                       -file   => ">$filename" );
 
     my %amos_colours = (
                          'CE_STRETCH'      => '0 128 128',
@@ -3315,13 +3319,12 @@ sub merge_annotations {
         $outIO->write_seq($embl_record);
     }
 
-    chdir $tmpdir           or die "Error chdiring to $tmpdir: $!";
-    unlink "scaffolds.embl" or die "Error unlinking scaffolds.embl: $!";
-    symlink( "annotation_merge/scaffolds.embl", "scaffolds.embl" )
-      or die "Error creating scaffolds.embl symlink: $!";
+    chdir $tmpdir      or die "Error chdiring to $tmpdir: $!";
+    unlink "$filename" or die "Error unlinking $filename: $!";
+    symlink( "annotation_merge/$filename", "$filename" )
+      or die "Error creating $filename symlink: $!";
 
 }
-
 
 ######################################################################
 #
@@ -3337,32 +3340,32 @@ sub merge_annotations {
 
 sub run_cgview {
 
-    my $tmpdir   = shift;
+    my $tmpdir = shift;
 
-    my $cgview_dir = $config->{'cgview_dir'};
+    my $cgview_dir  = $config->{'cgview_dir'};
     my $xml_creator = $cgview_dir . "cgview_xml_builder/cgview_xml_builder.pl";
-    my $java       = $config->{'java'};
+    my $java        = $config->{'java'};
 
     message("Creating genome visualisaton...");
 
-    chdir $tmpdir      or die "Error chdiring to $tmpdir: $!";
+    chdir $tmpdir  or die "Error chdiring to $tmpdir: $!";
     mkdir "cgview" or die "Error creating cgview directory: $!";
     chdir "cgview" or die "Error chdiring to cgview $!";
 
-    my ($embl,$outfile);
+    my ( $embl, $outfile );
     if ( -e "../scaffolds.embl" ) {
-        $embl = "../scaffolds.embl";
-	$outfile = "scaffolds_cgview.png";
+        $embl    = "../scaffolds.embl";
+        $outfile = "scaffolds_cgview.png";
     }
     else {
-        $embl = "../contigs.embl";
-	$outfile = "contigs_cgview.png";
+        $embl    = "../contigs.embl";
+        $outfile = "contigs_cgview.png";
     }
 
     my $cmd = "$xml_creator -sequence $embl -output scaffolds_cgview.xml -gc_skew T >xml_creator.log 2>&1";
     system("$cmd") == 0 or die "Error running $cmd: $!";
 
-	$cmd = "${java} -jar ${cgview_dir}/cgview.jar -f png -i scaffolds_cgview.xml -o $outfile >cgview.log 2>&1";
+    $cmd = "${java} -jar ${cgview_dir}/cgview.jar -f png -i scaffolds_cgview.xml -o $outfile >cgview.log 2>&1";
     system("$cmd") == 0 or die "Error running $cmd: $!";
 
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
@@ -3370,7 +3373,6 @@ sub run_cgview {
 
     return (0);
 }
-
 
 ######################################################################
 #
