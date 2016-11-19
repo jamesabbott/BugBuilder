@@ -719,6 +719,7 @@ assemblers:
      scaffold_output: __TMPDIR__/masurca/scaffolds.fasta 
      default_args: --threads 8                                                                                                                                                                                 
      downsample_reads: 0 
+     insert_size_required: 1
 
 scaffolders:
    - name: SIS

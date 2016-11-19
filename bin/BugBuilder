@@ -42,7 +42,7 @@ BugBuilder
 
 =over 4
 
-=item B<fastq1>: Path to first read of paired library, or fragment library (
+=item B<fastq1>: Path to first read of paired library, or fragment library 
 
 =item B<fastq2>: Path to second read of paired library 
 
@@ -321,8 +321,8 @@ set_paths($config);
       if ( $type eq 'long' && ( !$genome_size && !$reference ) );
 
     my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method, $sel_finisher, $sel_varcall ) =
-      select_tools( $config,  \@assemblers, $scaffolder, $merge_method, $finisher,
-                    $varcall, $paired,      $reference,  $type,         $mean_read_length );
+      select_tools( $config, \@assemblers, $scaffolder, $merge_method,     $finisher, $varcall,
+                    $paired, $reference,   $type,       $mean_read_length, $insert_size );
     @assemblers   = @$sel_assemblers;
     $scaffolder   = $sel_scaffolder;
     $merge_method = $sel_merge_method;
@@ -487,8 +487,8 @@ set_paths($config);
     message("Final Assembly Statistics...");
     get_contig_stats( "$tmpdir/contigs.fasta", 'contigs' );
     get_contig_stats( "$tmpdir/scaffolds.fasta", 'scaffolds' ) if ( -e "$tmpdir/scaffolds.fasta" );
-	my $emblfile;
-	(-e "$tmpdir/scaffolds.embl") ? ($emblfile = "$tmpdir/scaffolds.embl") : ($emblfile = "$tmpdir/contigs.embl");
+    my $emblfile;
+    ( -e "$tmpdir/scaffolds.embl" ) ? ( $emblfile = "$tmpdir/scaffolds.embl" ) : ( $emblfile = "$tmpdir/contigs.embl" );
 
     my $io = Bio::SeqIO->new( -format => 'embl', -file => "$emblfile" );
     my ( $cds, $tRNA, $rRNA );
@@ -591,8 +591,6 @@ sub set_paths {
 ######################################################################
 #
 # select_tools
-#
-# Selects appropriate assemblers and scaffolder from configured
 # options, while checking for validity of selections...
 #
 # required params: $ ($config hash ref)
@@ -623,6 +621,7 @@ sub select_tools {
     my $reference   = shift;
     my $type        = shift;
     my $read_length = shift;
+    my $insert_size = shift;
 
     my @assemblers = @$assemblers;
     die "\nA maximum of 2 assemblers can be requested\n" if ( $#assemblers > 1 );
@@ -655,6 +654,10 @@ sub select_tools {
                     if ( $conf_assembler->{'max_length'} && $read_length > $conf_assembler->{'max_length'} ) {
                         die "\nError: $assembler does not support reads longer than "
                           . $conf_assembler->{'max_length'} . " bp";
+                    }
+                    if ( $conf_assembler->{'insert_size_required'} && ( !$reference && !$insert_size ) ) {
+                        die "\nError: $assembler requires the library insert size and stddev to be provided."
+                          . "\nPlease add the --insert-size and --insert-stddev parameters, or provide a reference sequence";
                     }
                 }
             }
