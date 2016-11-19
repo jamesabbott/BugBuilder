@@ -272,6 +272,7 @@ set_paths($config);
     die "\n--fastq1 and --fastq2 arguments may only be specified once..." if ($fastq_error);
     die "\nInvalid mode: $mode" unless ( $mode eq 'submission' || $mode eq 'draft' );
     die "\nDraft mode requires a reference genome to be provided" if ( $mode eq 'draft' & !$reference );
+    die "\nA merge-method must be defined when selecting multiple assemblers" if ( $#assemblers > 0 && !$merge_method );
 
     parse_fasta_id($reference) if ($reference);
 
