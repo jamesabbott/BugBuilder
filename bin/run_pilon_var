@@ -18,7 +18,7 @@ run_pilon_var
 
 =head1 SYNOPSIS
 
-run_pilon _var--tmpdir BugBuilder_working_directory [n] [--help]
+run_pilon _var --tmpdir BugBuilder_working_directory [n] [--help]
 
 =head1 DESCRIPTION
 

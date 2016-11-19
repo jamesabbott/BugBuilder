@@ -70,7 +70,7 @@ BEGIN {
                          qw(Test::More YAML::XS File::Copy::Recursive  Perl4::CoreLibs
                          Parallel::ForkManager Archive::Extract Archive::Tar Archive::Zip
                          Digest::MD5 File::Tee SVG Text::CSV Log::Log4perl JSON Time::Piece
-                         CGI HTML::Template Clone)
+                         CGI HTML::Template Clone Sys::CPU)
                        )
     {
         eval "require $module";
@@ -124,6 +124,7 @@ use YAML::XS qw(LoadFile);
 use Archive::Extract;
 use Archive::Tar;
 use HTML::Template;
+use Sys::CPU;
 
 {
     my ( $man, $help, $auto );
@@ -172,6 +173,10 @@ use HTML::Template;
     my $found_java = which('java');
     my $java       = $term->readline("Enter path to java [Found $found_java]");
     $java = $found_java if ( $java eq "" );
+
+	my $cpu_count= Sys::CPU::cpu_count();
+	my $threads = $term->readline("Enter number of parallel threads to run [$cpu_count]");
+	$threads = $cpu_count if ($threads eq "");
 
     my $path_config;
 
@@ -223,6 +228,7 @@ use HTML::Template;
     my $config = HTML::Template->new_filehandle($fh);
     $config->param( 'TMP_DIR',       $tmp_dir );
     $config->param( 'JAVA',          $java );
+	$config->param('THREADS', $threads);
     $config->param( 'INSTALL_PATHS', $path_config );
 
     open CONFIG, ">$FindBin::Bin/../etc/BugBuilder.yaml"
@@ -603,7 +609,8 @@ __DATA__
 tmp_dir: <TMPL_VAR NAME=TMP_DIR>
 # java specifies the java binary
 java: <TMPL_VAR NAME=JAVA>
-
+# number of parallel threads to run
+threads: <TMPL_VAR NAME=THREADS>
 <TMPL_VAR NAME=INSTALL_PATHS>
 
 <TMPL_VAR NAME=APPEND_PATH>
@@ -693,7 +700,7 @@ assemblers:
      command_hybrid: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ --pacbio __LONGFASTQ__ -o __TMPDIR__/spades
      contig_output: __TMPDIR__/spades/contigs.fasta
      scaffold_output: __TMPDIR__/spades/scaffolds.fasta
-     default_args: -t 8 --careful
+     default_args: -t __THREADS__ --careful
      downsample_reads: 1
    - name: celera
      create_dir: 1
@@ -712,12 +719,12 @@ assemblers:
      downsample_reads: 0
      # masurca works best with untrimmed reads, so use __ORIG_FASTQ1__ nad __ORIG_FASTQ2__
    - name: masurca
-     create_dir: 1                                                                                                                                                                                             
+     create_dir: 1
      command_pe: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
      command_hybrid: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --longfastq __LONGFASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
      contig_output: __TMPDIR__/masurca/contigs.fasta
      scaffold_output: __TMPDIR__/masurca/scaffolds.fasta 
-     default_args: --threads 8                                                                                                                                                                                 
+     default_args: --threads __THREADS__ 
      downsample_reads: 0 
      insert_size_required: 1
 
@@ -758,7 +765,7 @@ merge_tools:
 
 finishers:
    - name: gapfiller
-     command: __BUGBUILDER_BIN__/run_gapfiller --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__
+     command: __BUGBUILDER_BIN__/run_gapfiller --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__ --threads __THREADS__
      create_dir: 1
      ref_required: 0
      paired_reads: 1
@@ -770,7 +777,7 @@ finishers:
      paired_reads: 1
      priority: 3
    - name: pilon
-     command: __BUGBUILDER_BIN__/run_pilon --tmpdir __TMPDIR__
+     command: __BUGBUILDER_BIN__/run_pilon --tmpdir __TMPDIR__ --threads __THREADS__
      create_dir: 1
      ref_required: 0
      paired_reads: 1

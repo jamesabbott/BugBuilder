@@ -38,6 +38,8 @@ Wrapper for running gapfiller within BugBuilder
 
 =over 4
 
+=item B<threads>: Number of parallel threads to run
+
 =item B<help>: display short help text
 
 =item B<man>: display full documentation
@@ -70,13 +72,15 @@ use Bio::SeqIO;
     my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
 
     my ( $help, $man, $tmpdir, $insert_size, $insert_stddev );
+    my $threads = 1;
 
     my $result = GetOptions(
-                             'tmpdir=s'        => \$tmpdir,
-                             'insert_size=s'   => \$insert_size,
-                             'insert_sd=s' => \$insert_stddev,
-                             'help'            => \$help,
-                             'man'             => \$man,
+                             'tmpdir=s'      => \$tmpdir,
+                             'insert_size=s' => \$insert_size,
+                             'insert_sd=s'   => \$insert_stddev,
+                             'threads:s'     => \$threads,
+                             'help'          => \$help,
+                             'man'           => \$man,
                            );
 
     croak "\nUnknown argument: @ARGV" if "@ARGV";
@@ -107,7 +111,7 @@ use Bio::SeqIO;
         $outIO->write_seq($scaff);
 
         my $cmd = $config->{'gapfiller_dir'}
-          . "GapFiller.pl -s $tmpdir/gapfiller/unfilled_scaffold_$i -l library.txt -T 8 -i 20 -b gapfilled_$i >> $tmpdir/gapfiller/gapfiller.log 2>&1";
+          . "GapFiller.pl -s $tmpdir/gapfiller/unfilled_scaffold_$i -l library.txt -T $threads -i 20 -b gapfilled_$i >> $tmpdir/gapfiller/gapfiller.log 2>&1";
 
         #GapFiller will fail on singleton scaffolds, so wrap the system call in an eval,
         # and if it hasn't succeeded just symlink in the original file

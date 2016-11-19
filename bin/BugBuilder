@@ -199,7 +199,7 @@ set_paths($config);
     my $trim_qv      = 20;
     my $trim_length  = 50;
     my $split_origin = 1;
-    my $threads      = 8;
+    my $threads      = $config->{'threads'};
     my $genome_size  = 0;
     my $out_dir      = undef;
     my $tmpdir       = undef;
@@ -411,9 +411,9 @@ set_paths($config);
         my $args      = $assembler_args[$i];
 
         run_assembler(
-                       $tmpdir,   $assembler,        $reference,   $args,
-                       $link,     $type,             $encoding,    $genome_size,
-                       $platform, $mean_read_length, $insert_size, $stddev
+                       $tmpdir,      $assembler, $reference,   $args,     $link,
+                       $type,        $encoding,  $genome_size, $platform, $mean_read_length,
+                       $insert_size, $stddev,    $threads
                      );
     }
 
@@ -424,7 +424,7 @@ set_paths($config);
     $scaffold_type =
       run_scaffolder( $tmpdir, "$tmpdir/reference_parsed_ids.fasta",
                       $scaffolder, $scaffolder_args, $insert_size, $stddev, 1, "$tmpdir/contigs.fasta",
-                      $mean_read_length )
+                      $mean_read_length, $threads )
       if ($scaffolder);
 
     if ( -e "$tmpdir/scaffolds.fasta" && $reference ) {
@@ -433,7 +433,7 @@ set_paths($config);
         $scaffolder = "mauve" if ( !$scaffolder );
 
         find_origin( $tmpdir, $scaffolder, $scaffolder_args, "$tmpdir/reference_parsed_ids.fasta",
-                     $insert_size, $stddev, $mean_read_length )
+                     $insert_size, $stddev, $mean_read_length, $threads )
           if ($split_origin);
         order_scaffolds( $tmpdir, basename($reference) );
 
@@ -1473,6 +1473,7 @@ sub run_assembler {
     my $read_length = shift;
     my $insert_size = shift;
     my $stddev      = shift;
+    my $threads     = shift;
 
     my ( $cmd, $contig_output, $scaffold_output, $create );
 
@@ -1533,6 +1534,7 @@ sub run_assembler {
         s/__READ_LENGTH__/$read_length/ if ($read_length);
         s/__INSSIZE__/$insert_size/     if ($insert_size);
         s/__INSSD__/$stddev/            if ($stddev);
+        s/__THREADS__/$threads/;
     }
 
     $cmd .= " > $tmpdir/$assembler.log 2>&1 ";
@@ -1916,6 +1918,7 @@ sub run_scaffolder {
     my $run_id           = shift;
     my $contigs          = shift;
     my $mean_read_length = shift;
+    my $threads          = shift;
 
     message(" Starting $scaffolder");
 
@@ -2052,6 +2055,7 @@ sub run_scaffolder {
                 s/__CONTIGS__/${run_dir}\/${scaff_contigs}/;
                 s/__INSSIZE__/$insert_size/;
                 s/__INSSD__/$insert_sd/;
+                s/__THREADS__/$threads/;
             }
             if ( defined($unscaffolded_output) ) {
                 $unscaffolded_output =~ s/__BUGBUILDER_BIN__/$FindBin::Bin/;
@@ -2122,6 +2126,7 @@ sub run_scaffolder {
             s/__CONTIGS__/$contigs/;
             s/__INSSIZE__/$insert_size/;
             s/__INSSD__/$insert_sd/;
+            s/__THREADS__/$threads/;
         }
         if ( defined($unscaffolded_output) ) {
             $unscaffolded_output =~ s/__BUGBUILDER_BIN__/$FindBin::Bin/;
@@ -2622,6 +2627,7 @@ sub find_origin {
     my $insert_size      = shift;
     my $stddev           = shift;
     my $mean_read_length = shift;
+    my $threads          = shift;
 
     my $ori_dir = $tmpdir . "/origin";
     mkdir "$ori_dir" or die "Error creating $ori_dir: $!";
@@ -2674,10 +2680,13 @@ sub find_origin {
                 undef($splitIO);
 
                 # Now rerun scaffolder on split sequence containing origin.
-                run_scaffolder( $ori_dir, "$tmpdir/reference_parsed_ids.fasta",
-                                $scaffolder, $scaffolder_args, $insert_size, $stddev, 2,
-                                "$tmpdir/origin/split_ori_scaff.fasta",
-                                $mean_read_length );
+                run_scaffolder(
+                                $ori_dir,          "$tmpdir/reference_parsed_ids.fasta",
+                                $scaffolder,       $scaffolder_args,
+                                $insert_size,      $stddev,
+                                2,                 "$tmpdir/origin/split_ori_scaff.fasta",
+                                $mean_read_length, $threads
+                              );
                 my $scaffIO =
                   Bio::SeqIO->new( -format => 'fasta', -file => "$ori_dir/${scaffolder}_2/scaffolds.fasta" );
                 while ( my $scaffold = $scaffIO->next_seq() ) {
