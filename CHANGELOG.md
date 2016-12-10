@@ -1,4 +1,7 @@
 # Change Log
+## - 10 Dec 2016
+  - Added check for same fastq file being passed as both fastq1 and fastq2
+
 ## - 3 Dec 2016
   - Added id_check sub to verify %id of reference to assembly before attempting scaffolding
 

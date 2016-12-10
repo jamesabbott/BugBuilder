@@ -269,12 +269,15 @@ set_paths($config);
     if ($reference) {
         die "\nReference sequence $reference does not exist" unless ( -e $reference );
     }
-    die "\nfastq_1 $fastq1 does not exist" if ( defined($fastq1) && ( !-e $fastq1 ) );
-    die "\nfastq_2 $fastq2 does not exist" if ( defined($fastq2) && ( !-e $fastq2 ) );
-    die "\n--fastq1 and --fastq2 arguments may only be specified once..." if ($fastq_error);
-    die "\nInvalid mode: $mode" unless ( $mode eq 'submission' || $mode eq 'draft' );
-    die "\nDraft mode requires a reference genome to be provided" if ( $mode eq 'draft' & !$reference );
-    die "\nA merge-method must be defined when selecting multiple assemblers" if ( $#assemblers > 0 && !$merge_method );
+    die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) does not exist" if ( defined($fastq1) && ( !-e $fastq1 ) );
+    die "\n", RED, "ERROR: ", RESET, "fastq_2 ($fastq2) does not exist" if ( defined($fastq2) && ( !-e $fastq2 ) );
+    die "\n", RED, "ERROR: ", RESET, "--fastq1 and --fastq2 arguments may only be specified once..." if ($fastq_error);
+    die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) and fastq2 ($fastq2) are the same" if ( $fastq1 eq $fastq2 );
+    die "\n", RED, "ERROR: ", RESET, "Invalid mode: $mode" unless ( $mode eq 'submission' || $mode eq 'draft' );
+    die "\n", RED, "ERROR: ", RESET, "Draft mode requires a reference genome to be provided"
+      if ( $mode eq 'draft' & !$reference );
+    die "\n", RED, "ERROR:: ", RESET, "A merge-method must be defined when selecting multiple assemblers"
+      if ( $#assemblers > 0 && !$merge_method );
 
     parse_fasta_id($reference) if ($reference);
 
@@ -325,7 +328,7 @@ set_paths($config);
     die "\nPlease supply a genome size or reference sequence when running a long-read assembly"
       if ( $type eq 'long' && ( !$genome_size && !$reference ) );
 
-    my ( $sel_assemblers, $sel_scaffolder, $sel_merge_method, $sel_finisher, $sel_varcall ) =
+    my ( $sel_assemblers, $sel_scaffolder, $scaffold_type, $sel_merge_method, $sel_finisher, $sel_varcall ) =
       select_tools( $config, \@assemblers, $scaffolder, $merge_method,     $finisher, $varcall,
                     $paired, $reference,   $type,       $mean_read_length, $insert_size );
     @assemblers   = @$sel_assemblers;
@@ -428,13 +431,11 @@ set_paths($config);
         $id_ok = check_id($tmpdir);
     }
 
-    my $scaffold_type = 'paired-ends'
-      ;    #used to set linkage evidence in agp file, default to method used by assemblers in case no scaffolding run
-    $scaffold_type =
-      run_scaffolder( $tmpdir, "$tmpdir/reference_parsed_ids.fasta",
-                      $scaffolder, $scaffolder_args, $insert_size, $stddev, 1, "$tmpdir/contigs.fasta",
-                      $mean_read_length, $threads )
-      if ( $scaffolder && $id_ok );
+    run_scaffolder( $tmpdir, "$tmpdir/reference_parsed_ids.fasta",
+                    $scaffolder, $scaffolder_args, $insert_size, $stddev, 1, "$tmpdir/contigs.fasta", $mean_read_length,
+                    $threads )
+      if ( $scaffolder && ( $id_ok && $scaffold_type eq 'align_genus' )
+           || ( !$id_ok && $scaffold_type eq 'paired_ends' ) );
 
     if ( -e "$tmpdir/scaffolds.fasta" && $reference ) {
 
@@ -689,6 +690,7 @@ sub select_tools {
     my @available_scaffolders = map { $_->[0] }
       sort { $a->[1] <=> $b->[1] }
       map { [ $_->{'name'}, $_->{'priority'} ] } @{ $config->{'scaffolders'} };
+    my $linkage_evidence;
 
     if ($scaffolder) {
         unless ( grep ( /^$scaffolder$/i, @available_scaffolders ) ) {
@@ -705,6 +707,7 @@ sub select_tools {
                 elsif ( $conf_scaffolder->{'linkage_evidence'} =~ /align/ & !$reference ) {
                     die "\nError: $scaffolder requires a reference for alignment, but none is specified...\n";
                 }
+                $linkage_evidence = $conf_scaffolder->{'linkage_evidence'};
             }
 
         }
@@ -767,7 +770,7 @@ sub select_tools {
         }
     }
 
-    return ( \@assemblers, $scaffolder, $merger, $finisher, $varcall );
+    return ( \@assemblers, $scaffolder, $linkage_evidence, $merger, $finisher, $varcall );
 
 }
 
