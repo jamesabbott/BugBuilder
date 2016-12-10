@@ -152,12 +152,15 @@ Email j.abbott@imperial.ac.uk
 use warnings;
 use strict;
 
-use FindBin;
-use Getopt::Long;
-use Pod::Usage;
-use YAML::XS qw(LoadFile);
 use Archive::Zip qw(:ERROR_CODES :CONSTANTS);
+use Bio::SeqIO;
+use Bio::SearchIO;
+use Bio::Seq;
+use Bio::SeqFeature::Generic;
+use Bio::Search::Tiling::MapTiling;
+use Bio::DB::Fasta;
 use Cwd;
+use DateTime;
 use File::Temp qw(tempdir);
 use File::Path qw(make_path rmtree);
 use File::Copy;
@@ -165,17 +168,16 @@ use File::Copy::Recursive qw(dircopy);
 use File::Basename;
 use File::Find::Rule;
 use File::Tee qw(tee);
-use PerlIO::gzip;
-use Parallel::ForkManager;
-use Bio::SeqIO;
-use Bio::SearchIO;
-use Bio::Seq;
-use Bio::SeqFeature::Generic;
-use Bio::DB::Fasta;
-use Text::ASCIITable;
-use DateTime;
-use Statistics::Basic qw(:all);
 use File::Which qw(which);
+use FindBin;
+use Getopt::Long;
+use Parallel::ForkManager;
+use PerlIO::gzip;
+use Pod::Usage;
+use Statistics::Basic qw(:all);
+use Term::ANSIColor qw(:constants);
+use Text::ASCIITable;
+use YAML::XS qw(LoadFile);
 
 $|++;
 
@@ -309,6 +311,8 @@ set_paths($config);
 
     $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
 
+    #	$tmpdir = "/scratch/BugBuilder/FXF6dPu5x7";
+
     $reference = basename($reference) if ($reference);
 
     #  need to know a bit about the provided reads so we can act appropriately
@@ -419,6 +423,10 @@ set_paths($config);
     }
 
     merge_assemblies( $tmpdir, \@assemblers, $merge_method ) if ( $#assemblers == 1 );
+    my $id_ok = 1;
+    if ( $scaffolder && $reference ) {
+        $id_ok = check_id($tmpdir);
+    }
 
     my $scaffold_type = 'paired-ends'
       ;    #used to set linkage evidence in agp file, default to method used by assemblers in case no scaffolding run
@@ -426,7 +434,7 @@ set_paths($config);
       run_scaffolder( $tmpdir, "$tmpdir/reference_parsed_ids.fasta",
                       $scaffolder, $scaffolder_args, $insert_size, $stddev, 1, "$tmpdir/contigs.fasta",
                       $mean_read_length, $threads )
-      if ($scaffolder);
+      if ( $scaffolder && $id_ok );
 
     if ( -e "$tmpdir/scaffolds.fasta" && $reference ) {
 
@@ -436,9 +444,9 @@ set_paths($config);
         find_origin( $tmpdir, $scaffolder, $scaffolder_args, "$tmpdir/reference_parsed_ids.fasta",
                      $insert_size, $stddev, $mean_read_length, $threads )
           if ($split_origin);
-        order_scaffolds( $tmpdir, basename($reference) );
+        order_scaffolds( $tmpdir, basename($reference) ) if ($id_ok);
 
-        finish_assembly( $tmpdir, $finisher, $insert_size, $stddev, $encoding, $threads ) if ($finisher);
+        finish_assembly( $tmpdir, $finisher, $insert_size, $stddev, $encoding, $threads ) if ( $finisher && $id_ok );
 
     }
 
@@ -1857,7 +1865,7 @@ sub get_insert_stats {
     # picard command for earlier versions....
     #my $cmd = "java -jar " . $config->{'picard_dir'} . "CollectInsertSizeMetrics.jar ";
     my $cmd = "java -jar " . $config->{'picard_dir'} . "picard.jar CollectInsertSizeMetrics ";
-    $cmd .= " INPUT=$tmpdir/bwa/$reference.bam HISTOGRAM_FILE=insert_histogram.pdf OUTPUT=insert_stats.txt ";
+    $cmd .= "INPUT=$tmpdir/bwa/$reference.bam HISTOGRAM_FILE=insert_histogram.pdf OUTPUT=insert_stats.txt ";
     $cmd .=
       " QUIET=true VERBOSITY=ERROR ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT > CollectInsertMetrics.log 2>&1";
     system($cmd) == 0 or die " Error executing $cmd: $! ";
@@ -1880,6 +1888,66 @@ sub get_insert_stats {
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
 
     return ( $insert, $stddev );
+
+}
+
+######################################################################
+#
+# check_id
+#
+# Checks wether the assembled contigs have sufficient identity to the
+# reference for reference-based scaffolding
+#
+# required params: $ (tmp directory);
+#
+# returns        : $ id_ok (boolean)
+#
+######################################################################
+
+sub check_id {
+
+    my $tmpdir = shift;
+
+    message("Checking identity of assembly with reference...");
+
+    my $id_ok = 0;
+
+    mkdir "$tmpdir/id_check"
+      or die "Error creating $tmpdir/id_check: $! "
+      if ( !-d "$tmpdir/id_check" );
+    chdir "$tmpdir/id_check"
+      or die "Error chdiring to $tmpdir/id_check: $! ";
+
+    my $cmd = $config->{'blast_dir'}
+      . "/blastn -query $tmpdir/contigs.fasta -subject $tmpdir/reference_parsed_ids.fasta -outfmt 5 -evalue 0.01 -out blastout.xml 2>&1 > blastn.log";
+    system($cmd) == 0 or die "Error running $cmd: $!";
+
+    my $blio = Bio::SearchIO->new( -format => 'blastxml',
+                                   -file   => 'blastout.xml' );
+
+    my ( $aligned, $unaligned );
+    while ( my $result = $blio->next_result() ) {
+        foreach my $hit ( $result->hits() ) {
+            my $tiling = Bio::Search::Tiling::MapTiling->new($hit);
+            $aligned   += $tiling->num_aligned();
+            $unaligned += $tiling->num_unaligned();
+        }
+    }
+    my $percent_id = sprintf( '%.2f', ( $aligned / ( $aligned + $unaligned ) * 100 ) );
+    print "ID=$percent_id %\n";
+
+    if ( $percent_id > 80 ) {
+        $id_ok = 1;
+    }
+    else {
+        $id_ok = 0;
+        print RED, "WARNING", RESET, ": Percentage identitiy of assembly with reference looks to low (${percent_id}%\n";
+        print "Reference will not be used for scaffolding or ordering contigs\n";
+    }
+
+    chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
+
+    return ($id_ok);
 
 }
 

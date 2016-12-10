@@ -1,4 +1,7 @@
 # Change Log
+## - 3 Dec 2016
+  - Added id_check sub to verify %id of reference to assembly before attempting scaffolding
+
 ## - 1 Nov 2016
   - Added pilon as new finishing method
 
