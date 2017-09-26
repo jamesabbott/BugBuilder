@@ -130,10 +130,11 @@ use Bio::SeqIO;
     # some assemblies have a result_alternative.fasta output whihc seems better than the result1.fasta,
     # however it does not always get createed. The difference and reasonig between the two are not documented
     # and the questions to the authros have been unanswered....
-    my $infile;
-    ( -e "out/result.alternative.fasta" )
-      ? ( $infile = 'out/result.alternative.fasta' )
-      : ( $infile = 'out/result1.fasta' );
+#    my $infile;
+#    ( -e "out/result.alternative.fasta" )
+#      ? ( $infile = 'out/result.alternative.fasta' )
+#      : ( $infile = 'out/result1.fasta' );
+	my $infile = 'out/result1.fasta'; #more conservative
     my $inIO  = Bio::SeqIO->new( -format => 'fasta', -file => $infile );
     my $outIO = Bio::SeqIO->new( -format => 'fasta', -file => ">renamed.fasta" );
     my $i     = 0;
