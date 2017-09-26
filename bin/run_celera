@@ -118,7 +118,7 @@ use Bio::SeqIO;
     if ($category eq '454_IonTorrent') {
 	$platform = '454';	
     } elsif ($category eq 'long_illumina') {
-	$platform = 'illumina';
+	$platform = 'illumina-long';
     }
 
     my $cmd = $config->{'celera_dir'} . "/fastqToCA -technology $platform -type $encoding -libraryname BugBuilder";
