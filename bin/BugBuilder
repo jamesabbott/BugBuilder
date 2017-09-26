@@ -272,7 +272,7 @@ set_paths($config);
     die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) does not exist" if ( defined($fastq1) && ( !-e $fastq1 ) );
     die "\n", RED, "ERROR: ", RESET, "fastq_2 ($fastq2) does not exist" if ( defined($fastq2) && ( !-e $fastq2 ) );
     die "\n", RED, "ERROR: ", RESET, "--fastq1 and --fastq2 arguments may only be specified once..." if ($fastq_error);
-    die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) and fastq2 ($fastq2) are the same" if ( $fastq1 eq $fastq2 );
+    die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) and fastq2 ($fastq2) are the same" if ( $fastq1 eq $fastq2 &! $long_fastq);
     die "\n", RED, "ERROR: ", RESET, "Invalid mode: $mode" unless ( $mode eq 'submission' || $mode eq 'draft' );
     die "\n", RED, "ERROR: ", RESET, "Draft mode requires a reference genome to be provided"
       if ( $mode eq 'draft' & !$reference );
@@ -313,9 +313,6 @@ set_paths($config);
     my $orig_dir = cwd();
 
     $tmpdir = setup_tempdir( $fastq1, $fastq2, $long_fastq, $reference, $platform, $tmpdir );
-
-    #	$tmpdir = "/scratch/BugBuilder/FXF6dPu5x7";
-
     $reference = basename($reference) if ($reference);
 
     #  need to know a bit about the provided reads so we can act appropriately
@@ -427,9 +424,9 @@ set_paths($config);
 
     merge_assemblies( $tmpdir, \@assemblers, $merge_method ) if ( $#assemblers == 1 );
     my $id_ok = 1;
-    if ( $scaffolder && $reference ) {
-        $id_ok = check_id($tmpdir);
-    }
+    #if ( $scaffolder && $reference ) {
+    #    $id_ok = check_id($tmpdir);
+    #}
 
     run_scaffolder( $tmpdir, "$tmpdir/reference_parsed_ids.fasta",
                     $scaffolder, $scaffolder_args, $insert_size, $stddev, 1, "$tmpdir/contigs.fasta", $mean_read_length,
@@ -440,7 +437,10 @@ set_paths($config);
     if ( -e "$tmpdir/scaffolds.fasta" && $reference ) {
 
         #we may have been given a reference for a long read assembly but no scaffolder is used for these by default
-        $scaffolder = "mauve" if ( !$scaffolder );
+	if (!$scaffolder) {
+	    $scaffolder = "mauve";
+	    $scaffold_type = "align_genus";
+	}
 
         find_origin( $tmpdir, $scaffolder, $scaffolder_args, "$tmpdir/reference_parsed_ids.fasta",
                      $insert_size, $stddev, $mean_read_length, $threads )
@@ -711,6 +711,8 @@ sub select_tools {
             }
 
         }
+    } else {
+		$linkage_evidence = 'paired-end';
     }
 
     my @available_mergers = map { $_->[0] }
@@ -2556,7 +2558,7 @@ sub run_prokka {
     system($cmd);
     if ( $? != 0 ) { print "prokka exited with $?...\n" }
 
-    my $inIO        = Bio::SeqIO->new( -file => "$tmpdir/prokka/prokka.gbf",     -format => 'genbank' );
+    my $inIO        = Bio::SeqIO->new( -file => "$tmpdir/prokka/prokka.gbk",     -format => 'genbank' );
     my $embl_outIO  = Bio::SeqIO->new( -file => ">$tmpdir/prokka/prokka.embl",   -format => 'embl' );
     my $fasta_outIO = Bio::SeqIO->new( -file => ">$tmpdir/prokka/${type}.fasta", -format => 'fasta' );
 
