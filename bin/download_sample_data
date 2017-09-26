@@ -238,7 +238,6 @@ datasets:
       read_urls:	
         ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_27.fastq.gz	
         ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_1.fastq.gz
-        ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_25.fastq.gz
         ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_2.fastq.gz
         ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_23.fastq.gz
         ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR128/003/SRR1284073/SRR1284073_21.fastq.gz
