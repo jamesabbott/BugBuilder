@@ -1,50 +1,65 @@
 ######################################################################
 #
+# $HeadURL: https://bss-srv4/svn/BugBuilder/trunk/etc/BugBuilder.yaml $
+# $Author: jamesa $
+# $Revision: 106 $
+# $Date: 2015-10-11 19:23:13 +0100 (Sun, 11 Oct 2015) $
+#
 # BugBuilder configuration in YAML format
 #
-# This file defines the BugBuilder configuration. See the BugBuilder 
-# User Guide for details of the dependencies which need to be installed.
-#
 ######################################################################
+
+# This file defines the BugBuilder configuration. See the BugBuilder User Guide for details of the
+# dependencies which need to be installed.
 ---
 # tmp_dir specifies the location on the machine where working directories will be created
-tmp_dir: /scratch/BugBuilder
+tmp_dir: /home/jamesa/BugBuilder/
 # java specifies the java binary
-java: /usr/bin/java
+java: $ENV{'JAVA_HOME'}/bin/java
+threads: 16
 
-fastqc_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/fastqc/
-sickle_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-seqtk_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-samtools_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-picard_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/../packages/lib/picard//
-sis_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-mauve_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/../packages/mauve//
-R_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/
-barrnap_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/barrnap/bin/
-prokka_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/prokka/bin/
-aragorn_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-prodigal_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-hmmer3_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-rnammer_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/rnammer/
-mummer_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/mummer/
-infernal_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-blast_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/ncbi-blast/bin/
-bwa_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-tbl2asn_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-abyss_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-sam2afg: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/samtoafg
-spades_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-celera_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/celera/Linux-amd64/bin/
-gapfiller_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/gapfiller/
-sspace_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/sspace/
-asn2gb_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/bin/
-amos_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/packages/amos/bin/
-batik_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/../packages/lib/batik//
-circleator_dir: /data/jamesa/BugBuilder/BugBuilder_rc1/bin/
+fastqc_dir: $ENV{'FASTQC_HOME'}
+sickle_dir: $ENV{'SICKLE_HOME'}
+seqtk_dir: $ENV{'SEQTK_HOME'}
+# Fully qualified path to samtoafg script. This can be obtained as part of the ABySS distributution
+# (named abyss-samtoafg), or is available as part of AMOS from the git repository (named
+# samtoafg.pl). The patch in src/sam2afg.patch should be applied to the script to allow it to work
+# with the output of 'bwa mem -M'. See the user guide for full details.
+sam2afg: /usr/biosoft/packages/abyss/current/bin/abyss-samtoafg
+abyss_dir: $ENV{'ABYSS_HOME'}
+amos_dir: $ENV{'AMOS_HOME'}
+barrnap_dir: $ENV{'BARRNAP_HOME'}
+samtools_dir: $ENV{'SAMTOOLS_HOME'}
+picard_dir: $ENV{'PICARD_HOME'}
+sis_dir: $ENV{'SIS_HOME'}
+sspace_dir: $ENV{'SSPACE_HOME'}
+gapfiller_dir: $ENV{'GAPFILLER_HOME'}
+R_dir: $ENV{'R_HOME'}
+prokka_dir: $ENV{'PROKKA_HOME'}
+aragorn_dir: $ENV{'ARAGORN_HOME'}
+prodigal_dir: $ENV{'PRODIGAL_HOME'}
+hmmer3_dir: $ENV{'HMMER_HOME'}
+rnammer_dir: $ENV{'RNAMMER_HOME'}
+mummer_dir: $ENV{'MUMMER_HOME'}
+infernal_dir: $ENV{'INFERNAL_HOME'}
+blast_dir: $ENV{'NCBI_BLAST_HOME'}
+bwa_dir: $ENV{'BWA_HOME'}
+asn2gb_dir: $ENV{'NCBI_TOOLS_HOME'}
+tbl2asn_dir: $ENV{'NCBI_TOOLS_HOME'}
+celera_dir: $ENV{'CELERA_ASSEMBLER_HOME'}
+batik_dir: $ENV{'BATIK_HOME'}
+mauve_dir: $ENV{'MAUVE_HOME'}
+spades_dir: $ENV{'SPADES_HOME'}
+masurca_dir: $ENV{'MASURCA_HOME'}
+gfinisher_dir: $ENV{'GENOMEFINISHER_HOME'}
+pilon_dir: $ENV{'PILON_HOME'}
+vcflib_dir: $ENV{'VCFLIB_HOME'}
+cgview_dir: $ENV{'CGVIEW_HOME'}
 
-perl_lib_path: /data/jamesa/BugBuilder/BugBuilder_rc1/lib/perl5
-
-
+#Set the python_lib_path and perl_lib_path attributes to enable 
+# Perl and Python modules installed in locations  to be found...
+python_lib_path: /lib/python2.6/site-packages/:/usr/biosoft/python_modules/lib64/python2.6/site-packages/:/usr/biosoft/python_modules/lib/python2.6/site-packages/:/usr/biosoft/packages/fastqident/lib/python2.6/site-packages/
+#perl_lib_path:
 
 # Definition of assembly categories, and platforms
 # These are used for automated assembler selection based on assesment of the 
@@ -124,13 +139,13 @@ assemblers:
      downsample_reads: 1
    - name: spades
      create_dir: 0
-     max_length: 300
+     max_length: 351
      command_se: __ASMDIR__/spades.py -s __FASTQ1__ -o __TMPDIR__/spades
      command_pe: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ -o __TMPDIR__/spades
      command_hybrid: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ --pacbio __LONGFASTQ__ -o __TMPDIR__/spades
      contig_output: __TMPDIR__/spades/contigs.fasta
      scaffold_output: __TMPDIR__/spades/scaffolds.fasta
-     default_args: -t 8 --careful
+     default_args: -t __THREADS__ --careful
      downsample_reads: 1
    - name: celera
      create_dir: 1
@@ -147,6 +162,16 @@ assemblers:
      contig_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.ctg.fasta
      scaffold_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.scf.fasta
      downsample_reads: 0
+     # masurca works best with untrimmed reads, so use __ORIG_FASTQ1__ nad __ORIG_FASTQ2__
+   - name: masurca
+     create_dir: 1                                                                                                                                                                                             
+     command_pe: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
+     command_hybrid: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --longfastq __LONGFASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
+     contig_output: __TMPDIR__/masurca/contigs.fasta
+     scaffold_output: __TMPDIR__/masurca/scaffolds.fasta 
+     default_args: --threads __THREADS__                                                                                                                                                                                 
+     downsample_reads: 0 
+     insert_size_required: 1
 
 scaffolders:
    - name: mauve
@@ -168,3 +193,44 @@ scaffolders:
      scaffold_output: BugBuilder.scaffolds.fasta
      create_dir: 1
      priority: 3
+
+merge_tools:
+   - name: gfinisher 
+     command: __BUGBUILDER_BIN__/run_gfinisher --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__ --reference __REFERENCE__
+     contig_output: renamed.fasta
+     create_dir: 1
+     priority: 1
+     allow_scaffolding: 1
+   - name: minimus
+     command: __BUGBUILDER_BIN__/run_minimus --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__
+     contig_output: renumbered.fasta
+     create_dir: 1
+     priority: 2
+     allow_scaffolding: 1
+
+finishers:
+   - name: gapfiller
+     command: __BUGBUILDER_BIN__/run_gapfiller --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__ --threads __THREADS__
+     create_dir: 1
+     ref_required: 0
+     priority: 2
+     paired_reads: 1
+   - name: abyss-sealer
+     command: __BUGBUILDER_BIN__/run_abyss-sealer --tmpdir __TMPDIR__ --encoding __ENCODING__ --threads __THREADS__
+     create_dir: 1
+     ref_required: 0
+     priority: 3
+     paired_reads: 1
+   - name: pilon
+     command: __BUGBUILDER_BIN__/run_pilon --tmpdir __TMPDIR__ --threads __THREADS__
+     create_dir: 1
+     ref_required: 0
+     paired_reads: 1
+     priority: 1
+
+varcallers:
+   - name: pilon
+     command: __BUGBUILDER_BIN__/run_pilon_var --tmpdir __TMPDIR__ --threads __THREADS__
+     ref_required: 1
+     create_dir: 1
+     priority: 1
