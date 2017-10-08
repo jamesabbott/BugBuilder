@@ -1825,7 +1825,7 @@ sub align_reads {
     }
 
     $cmd = "$samtools_dir/samtools view -q 10 -Sb $tmpdir/bwa/$reference.sam 2>$tmpdir/bwa/samtoolsview.log"
-      . "|$samtools_dir/samtools sort - $tmpdir/bwa/$reference";
+      . "|$samtools_dir/samtools sort -o $tmpdir/bwa/$reference.bam -";
     system($cmd) == 0 or die "Error running $cmd";
 
     $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
