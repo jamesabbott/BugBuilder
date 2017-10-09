@@ -712,7 +712,7 @@ sub select_tools {
 
         }
     } else {
-		$linkage_evidence = 'paired-end';
+		$linkage_evidence = 'paired-ends';
     }
 
     my @available_mergers = map { $_->[0] }
