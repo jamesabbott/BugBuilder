@@ -57,15 +57,17 @@ use warnings;
 use strict;
 
 use FindBin;
-use YAML::XS qw(LoadFile);
+use lib "$FindBin::Bin/../lib";
+
+use BugBuilder::Config;
 use Getopt::Long;
 use Pod::Usage;
 use Carp qw(croak cluck);
 use Bio::SeqIO;
 
 {
-
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+    my $bb_config = BugBuilder::Config->new();
+    my $config = $bb_config->get_config();
 
     my ( $help, $man, @assemblers, $tmpdir );
 
@@ -99,14 +101,13 @@ use Bio::SeqIO;
 	}
     }
 
-    my $cmd = $config->{'amos_dir'}
-      . "/tarchive2amos -o merged ". join (" ",@contigs). " > $tmpdir/minimus/tarchive2amos.log 2>&1";
+    my $cmd = "tarchive2amos -o merged ". join (" ",@contigs). " > $tmpdir/minimus/tarchive2amos.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
     my $count = `grep -c '>' $contigs[0]`;
     chomp $count;
 
-    $cmd = $config->{'amos_dir'} . "/minimus2 merged -D REFCOUNT=$count > $tmpdir/minimus/minumus2.log 2>&1";
+    $cmd = "minimus2 merged -D REFCOUNT=$count > $tmpdir/minimus/minumus2.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
     $cmd = "cat merged.singletons.seq >> merged.fasta";

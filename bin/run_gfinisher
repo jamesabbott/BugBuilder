@@ -61,15 +61,21 @@ use warnings;
 use strict;
 
 use FindBin;
-use YAML::XS qw(LoadFile);
+use lib "$FindBin::Bin/../lib";
+
+use Bio::SeqIO;
+use BugBuilder::Config;
+use Carp qw(croak cluck);
+use File::Which;
 use Getopt::Long;
 use Pod::Usage;
-use Carp qw(croak cluck);
-use Bio::SeqIO;
+use YAML::XS qw(LoadFile);
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+    my $bb_config = BugBuilder::Config->new();
+    my $config = $bb_config->get_config();
+
 
     my ( $help, $man, @assemblers, $tmpdir, $reference );
 
@@ -111,18 +117,18 @@ use Bio::SeqIO;
     $template .= $_ while (<TMPL>);
     close TMPL;
 
-    my $blast_path = $config->{'blast_dir'};
+    #set blast_path in gfinisher template
+    my $blast_path = which 'blastn';
+    $blast_path=~s/blastn$//;
     $template =~ s/__BLAST_PATH__/$blast_path/;
 
     open TMPL, ">gfinisher.config" or die "Error opening gfinisher.config: $!";
     print TMPL $template;
     close TMPL;
 
-    my $cmd =
-        $config->{'java'}
-      . " -Djava.awt.headless=true -jar "
+    my $cmd = "java -Djava.awt.headless=true -jar "
       . $config->{'gfinisher_dir'}
-      . "GenomeFinisher.jar -config gfinisher.config "
+      . "/GenomeFinisher.jar -config gfinisher.config "
       . "-i $contigs[0] -ds $contigs[1] -ref $reference -v >gfinisher.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 

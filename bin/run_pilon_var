@@ -59,7 +59,9 @@ use warnings;
 use strict;
 
 use FindBin;
-use YAML::XS qw(LoadFile);
+use lib "$FindBin::Bin/../lib";
+
+use BugBuilder::Config;
 use Getopt::Long;
 use Pod::Usage;
 use Carp qw(croak cluck);
@@ -67,7 +69,9 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my $bb_config = BugBuilder::Config->new();
+    my $config = $bb_config->get_config();
 
     my ( $help, $man, $tmpdir );
     my $threads = 1;
@@ -85,17 +89,15 @@ use Bio::SeqIO;
       if ( $help || !$tmpdir );
 
     my $pilon_dir  = $config->{'pilon_dir'};
-    my $vcflib_dir = $config->{'vcflib_dir'};
-    my $java       = $config->{'java'};
 
     my $cmd =
-        "${java} -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/var_pilon/reference.fasta"
+        "java -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/var_pilon/reference.fasta"
       . " --bam ${tmpdir}/var_pilon/reference.bam --variant --vcf --output var "
       . "--threads $threads >${tmpdir}/var_pilon/pilon.log 2>&1";
     system($cmd) == 0 or die "Error running pilon";
 
-    $cmd = "cat ${tmpdir}/var_pilon/var.vcf|$vcflib_dir/vcffilter -g 'GT = 1/1'|$vcflib_dir/vcffixup - "
-      . "|$vcflib_dir/vcffilter -f 'AC > 0'> ${tmpdir}/var_pilon/var.filtered.vcf";
+    $cmd = "cat ${tmpdir}/var_pilon/var.vcf|vcffilter -g 'GT = 1/1'|vcffixup - "
+      . "|vcffilter -f 'AC > 0'> ${tmpdir}/var_pilon/var.filtered.vcf";
     system($cmd) == 0 or die "Error running pilon";
 
 }

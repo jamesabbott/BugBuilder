@@ -18,42 +18,17 @@ tmp_dir: /home/jamesa/BugBuilder/
 java: $ENV{'JAVA_HOME'}/bin/java
 threads: 16
 
-fastqc_dir: $ENV{'FASTQC_HOME'}
-sickle_dir: $ENV{'SICKLE_HOME'}
-seqtk_dir: $ENV{'SEQTK_HOME'}
 # Fully qualified path to samtoafg script. This can be obtained as part of the ABySS distributution
 # (named abyss-samtoafg), or is available as part of AMOS from the git repository (named
 # samtoafg.pl). The patch in src/sam2afg.patch should be applied to the script to allow it to work
 # with the output of 'bwa mem -M'. See the user guide for full details.
 sam2afg: /usr/biosoft/packages/abyss/current/bin/abyss-samtoafg
-abyss_dir: $ENV{'ABYSS_HOME'}
-amos_dir: $ENV{'AMOS_HOME'}
-barrnap_dir: $ENV{'BARRNAP_HOME'}
-samtools_dir: $ENV{'SAMTOOLS_HOME'}
 picard_dir: $ENV{'PICARD_HOME'}
-sis_dir: $ENV{'SIS_HOME'}
-sspace_dir: $ENV{'SSPACE_HOME'}
 gapfiller_dir: $ENV{'GAPFILLER_HOME'}
-R_dir: $ENV{'R_HOME'}
-prokka_dir: $ENV{'PROKKA_HOME'}
-aragorn_dir: $ENV{'ARAGORN_HOME'}
-prodigal_dir: $ENV{'PRODIGAL_HOME'}
-hmmer3_dir: $ENV{'HMMER_HOME'}
-rnammer_dir: $ENV{'RNAMMER_HOME'}
-mummer_dir: $ENV{'MUMMER_HOME'}
-infernal_dir: $ENV{'INFERNAL_HOME'}
-blast_dir: $ENV{'NCBI_BLAST_HOME'}
-bwa_dir: $ENV{'BWA_HOME'}
-asn2gb_dir: $ENV{'NCBI_TOOLS_HOME'}
-tbl2asn_dir: $ENV{'NCBI_TOOLS_HOME'}
-celera_dir: $ENV{'CELERA_ASSEMBLER_HOME'}
 batik_dir: $ENV{'BATIK_HOME'}
 mauve_dir: $ENV{'MAUVE_HOME'}
-spades_dir: $ENV{'SPADES_HOME'}
-masurca_dir: $ENV{'MASURCA_HOME'}
 gfinisher_dir: $ENV{'GENOMEFINISHER_HOME'}
 pilon_dir: $ENV{'PILON_HOME'}
-vcflib_dir: $ENV{'VCFLIB_HOME'}
 cgview_dir: $ENV{'CGVIEW_HOME'}
 
 #Set the python_lib_path and perl_lib_path attributes to enable 
@@ -136,13 +111,14 @@ assemblers:
      command_pe: __BUGBUILDER_BIN__/run_abyss --tmpdir __TMPDIR__ --fastq1 __FASTQ1__ --fastq2 __FASTQ2__ --read_length __READ_LENGTH__
      contig_output: __TMPDIR__/abyss/abyss-contigs.fa
      scaffold_output: __TMPDIR__/abyss/abyss-scaffolds.fa
+     default_args: --assembler_args 'np=__THREADS__ j=__THREADS__'
      downsample_reads: 1
    - name: spades
      create_dir: 0
      max_length: 351
-     command_se: __ASMDIR__/spades.py -s __FASTQ1__ -o __TMPDIR__/spades
-     command_pe: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ -o __TMPDIR__/spades
-     command_hybrid: __ASMDIR__/spades.py -1 __FASTQ1__ -2 __FASTQ2__ --pacbio __LONGFASTQ__ -o __TMPDIR__/spades
+     command_se: spades.py -s __FASTQ1__ -o __TMPDIR__/spades
+     command_pe: spades.py -1 __FASTQ1__ -2 __FASTQ2__ -o __TMPDIR__/spades
+     command_hybrid: spades.py -1 __FASTQ1__ -2 __FASTQ2__ --pacbio __LONGFASTQ__ -o __TMPDIR__/spades
      contig_output: __TMPDIR__/spades/contigs.fasta
      scaffold_output: __TMPDIR__/spades/scaffolds.fasta
      default_args: -t __THREADS__ --careful
@@ -155,9 +131,9 @@ assemblers:
      contig_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.ctg.fasta
      scaffold_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.scf.fasta
      downsample_reads: 0
-   - name: PBcR
+   - name: pbcr
      create_dir: 1
-     min_length: 500
+     min_length: 0
      command_se: __BUGBUILDER_BIN__/run_PBcR --fastq __LONGFASTQ__ --tmpdir __TMPDIR__ --genome_size __GENOME_SIZE__ --platform __PLATFORM__
      contig_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.ctg.fasta
      scaffold_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.scf.fasta

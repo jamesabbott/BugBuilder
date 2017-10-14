@@ -85,8 +85,6 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
     my ( $help, $man, $fastq1, $fastq2, $insert_size, $insert_stddev, $category, $encoding, $tmpdir, $genome_size );
 
     my $result = GetOptions(
@@ -121,7 +119,7 @@ use Bio::SeqIO;
 	$platform = 'illumina-long';
     }
 
-    my $cmd = $config->{'celera_dir'} . "/fastqToCA -technology $platform -type $encoding -libraryname BugBuilder";
+    my $cmd = "fastqToCA -technology $platform -type $encoding -libraryname BugBuilder";
     $cmd .= " -insertsize $insert_size $insert_stddev" if ( $insert_size && $insert_stddev );
 
     print "running $cmd...\n";
@@ -134,8 +132,7 @@ use Bio::SeqIO;
     $cmd .= ">BugBuilder.frg";
     system($cmd) == 0 or croak " Error executing $cmd: $! ";
 
-    $cmd = $config->{'celera_dir'}
-      . "/runCA -d $tmpdir/celera/output -p BugBuilder";
+    $cmd = "runCA -d $tmpdir/celera/output -p BugBuilder";
     if ($category eq '454_IonTorrent') {
 	$cmd .= " -s $FindBin::Bin/../etc/celera_454_IonTorrent.spec"
     } elsif ($category eq 'long_illumina') {

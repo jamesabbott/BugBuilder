@@ -79,8 +79,6 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
     my ( $help, $man, $fastq1, $fastq2, $read_length, $assembler_args, $tmpdir );
 
     my $result = GetOptions(
@@ -116,7 +114,7 @@ use Bio::SeqIO;
 	}
 
 
-    my $cmd = $config->{'abyss_dir'} . "/abyss-pe in='$fastq1  $fastq2' name=abyss $assembler_args";
+    my $cmd = "abyss-pe $assembler_args in='$fastq1  $fastq2' name=abyss";
 
     print "running $cmd...\n";
     system($cmd) == 0 or croak " Error executing $cmd: $! ";

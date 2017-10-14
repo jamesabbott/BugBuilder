@@ -57,7 +57,9 @@ use warnings;
 use strict;
 
 use FindBin;
-use YAML::XS qw(LoadFile);
+use lib "$FindBin::Bin/../lib";
+
+use BugBuilder::Config;
 use Getopt::Long;
 use Pod::Usage;
 use Carp qw(croak cluck);
@@ -65,7 +67,9 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+    my $bb_config = BugBuilder::Config->new();
+    my $config = $bb_config->get_config();
+
 
     my ( $help, $man, $tmpdir );
     my $threads = 1;
@@ -82,10 +86,7 @@ use Bio::SeqIO;
     pod2usage( verbose => 1 )
       if ( $help || !$tmpdir );
 
-    my $bwa_dir      = $config->{'bwa_dir'};
-    my $samtools_dir = $config->{'samtools_dir'};
     my $pilon_dir    = $config->{'pilon_dir'};
-    my $java         = $config->{'java'};
 
     if ( !-e "${tmpdir}/read1.fastq" && !-e "${tmpdir}/read2.fastq" ) {
         die "Error: paired reads do not seem to be available....\n";
@@ -97,18 +98,17 @@ use Bio::SeqIO;
     symlink( "${tmpdir}/read2.fastq", "${tmpdir}/pilon/read2.fastq" )
       or die "Error creating ${tmpdir}/pilon/read2.fastq symlink: $!";
 
-    my $cmd = $bwa_dir . "/bwa index scaffolds.fasta > ${tmpdir}/pilon/bwa_index.log 2>&1";
+    my $cmd = "bwa index scaffolds.fasta > ${tmpdir}/pilon/bwa_index.log 2>&1";
     system($cmd) == 0 or die "Error running bwa index";
-    $cmd = $bwa_dir
-      . "/bwa mem -t ${threads} scaffolds.fasta read1.fastq read2.fastq 2>${tmpdir}/pilon/bwa_mem.log |${samtools_dir}/samtools view -bS - > scaffolds.bam 2>${tmpdir}/pilon/samtools_view.log 2>${tmpdir}/pilon/samtools_view.log";
+    $cmd = "bwa mem -t ${threads} scaffolds.fasta read1.fastq read2.fastq 2>${tmpdir}/pilon/bwa_mem.log |samtools view -bS - > scaffolds.bam 2>${tmpdir}/pilon/samtools_view.log 2>${tmpdir}/pilon/samtools_view.log";
     system($cmd) == 0 or die "Error running bwa mem";
-    $cmd = "${samtools_dir}/samtools sort scaffolds.bam scaffolds.sorted >${tmpdir}/pilon/samtools_sort.log 2>&1";
+    $cmd = "samtools sort -o scaffolds.sorted.bam scaffolds.bam>${tmpdir}/pilon/samtools_sort.log 2>&1";
     system($cmd) == 0 or die "Error running samtools sort";
-    $cmd = "${samtools_dir}/samtools index scaffolds.sorted.bam >${tmpdir}/pilon/samtools_index.log 2>&1";
+    $cmd = "samtools index scaffolds.sorted.bam >${tmpdir}/pilon/samtools_index.log 2>&1";
     system($cmd) == 0 or die "Error running samtools index";
 
     $cmd =
-"${java} -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/pilon/scaffolds.fasta --bam ${tmpdir}/pilon/scaffolds.sorted.bam --changes --vcf --tracks --threads $threads > ${tmpdir}/pilon/pilon.log 2>&1";
+"java -jar ${pilon_dir}/pilon.jar --genome ${tmpdir}/pilon/scaffolds.fasta --bam ${tmpdir}/pilon/scaffolds.sorted.bam --changes --vcf --tracks --threads $threads > ${tmpdir}/pilon/pilon.log 2>&1";
     system($cmd) == 0 or die "Error running pilon";
 
    # pilon appends '_pilon' to the end of the scaffold ids, so reformat to our convenction which makes it work properly with our downstream processes...

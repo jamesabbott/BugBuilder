@@ -36,8 +36,9 @@ packages:
       inst_source: 'fastqc_v0.11.4.zip'
       version: 
         - 'v0.11.4'
+        - 'v0.11.5'
       build_cmd: 'mv -v __BBDIR__/../src/fastqc/FastQC __PACKDIR__/fastqc 2>&1; chmod +x __PACKDIR__/fastqc/fastqc'
-      bin_dir: 'fastqc' 
+      bin_dir: '' 
       binary: 'fastqc'
       key: 'fastqc_dir'
       version_test: "__BINARY__ -v |awk '{print $2}'"
@@ -48,9 +49,10 @@ packages:
       version: 
         - '1.210'
         - '1.200'
+        - '1.33'
       inst_source: 'sickle_1.2.zip'
       build_cmd: 'cd __BBDIR__/../src/sickle/sickle-master; make 2>&1; mv -v sickle __PACKDIR__/bin/sickle 2>&1'
-      bin_dir: '/bin'
+      bin_dir: ''
       key: 'sickle_dir'
       download_url: 'https://github.com/najoshi/sickle'
 
@@ -59,11 +61,12 @@ packages:
       inst_source: 'seqtk-1.0.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/seqtk/seqtk-1.0; make 2>&1; mv -v seqtk __PACKDIR__/bin/seqtk 2>&1'
       key: 'seqtk_dir'
-      bin_dir: '/bin'
+      bin_dir: ''
       binary: 'seqtk'
       version_test: "__BINARY__ 2>&1|grep Version|awk '{print $2}'"
       version:
         - '1.0-r31'
+        - '1.2-r94'
 
     - name: 'samtools'
       binary:  'samtools'
@@ -73,6 +76,8 @@ packages:
         - '0.1.19'
         - '0.1.20'
         - '1.2'
+        - '1.3'
+        - '1.4'
       inst_source: 'samtools-1.2.tar.bz2'
       build_cmd: 'cd __BBDIR__/../src/samtools/samtools-1.2/; make -j 2 2>&1; mv -v samtools __PACKDIR__/bin/ 2>&1'
       download_url: 'http://samtools.sourceforge.net/'
@@ -88,7 +93,8 @@ packages:
       lib: 'picard.jar'
       version_test: "java -jar __BINARY__/picard.jar ViewSam --version 2>&1|cut -d '(' -f 1"
       version: 
-        - 1.140
+        - '1.140'
+        - '2.12.1-SNAPSHOT'
 
     - name: 'sis'
       binary: 'sis.py'
@@ -104,7 +110,7 @@ packages:
     - name: 'mauve'
       lib_dir: 'mauve'
       lib: 'Mauve.jar'
-      bin_dir: 'linux-x64'
+      bin_dir: ''
       build_cmd: 'mv -v __BBDIR__/../src/mauve/mauve_snapshot_2015-02-13/ __PACKDIR__/mauve'
       inst_source: 'mauve_linux_snapshot_2015-02-13.tar.gz'
       download_url: 'http://darlinglab.org/mauve/'
@@ -113,6 +119,7 @@ packages:
     - name: 'R'
       binary: 'R'
       version: 
+        - '3.3.3'
         - '3.2.2'
         - '2.15.3'
       version_test: "__BINARY__ --version 2>&1|grep 'R version'|awk '{print $3}'"
@@ -136,8 +143,9 @@ packages:
     - name: 'prokka'
       binary: 'prokka'
       version: 
-        - '1.11'
         - '1.5.2'
+        - '1.11'
+        - '1.12'
       version_test: "__BINARY__ --version 2>&1|awk '{print $2}'"
       inst_source: "prokka-1.11.tar.gz"
       build_cmd: 'mv -v __BBDIR__/../src/prokka/prokka-1.11 __PACKDIR__/prokka 2>&1; __PACKDIR__/prokka/bin/prokka --setupdb 2>&1'
@@ -150,6 +158,7 @@ packages:
       version: 
         - 'v1.2.36'
         - 'v1.2.34'
+        - 'v1.2.38'
       version_test: "__BINARY__ -h 2>&1|grep 'ARAGORN v'|awk '{print $2}'"
       inst_source: 'aragorn1.2.36.tgz'
       build_cmd: 'cd __BBDIR__/../src/aragorn/aragorn1.2.36; gcc -O3 -ffast-math -finline-functions -o aragorn aragorn1.2.36.c 2>&1; mv -v aragorn __PACKDIR__/bin 2>&1'
@@ -171,6 +180,7 @@ packages:
     - name: 'hmmer3'
       binary: 'hmmsearch'
       version: 
+       - '3.1b2'
        - '3.1b1'
        - '3.0'
       version_test: "__BINARY__  -h 2>&1|grep HMMER|awk '{print $3}'"
@@ -196,7 +206,7 @@ packages:
         - 3.1
       inst_source: 'MUMmer3.23.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/mummer/MUMmer3.23 __BBDIR__/../packages/mummer; cd __BBDIR__/../packages/mummer; make -j 2 2>&1; cd ..;'
-      bin_dir: '/mummer'
+      bin_dir: ''
       binary: 'nucmer'
       key: 'mummer_dir'
 
@@ -204,6 +214,7 @@ packages:
       binary: 'cmscan'
       version: 
         - '1.1rc4'
+        - '1.1.2'
       version_test: "__BINARY__  -h 2>&1|grep INFERNAL|awk '{print $3}'"
       inst_source: 'infernal-1.1rc4.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/infernal/infernal-1.1rc4; ./configure --prefix=__PACKDIR__/ 2>&1; make -j 2 2>&1; make install 2>&1'
@@ -214,6 +225,7 @@ packages:
     - name: 'blast'
       binary: 'blastn'
       version: 
+        - '2.6.0+'
         - '2.2.31+'
         - '2.2.28+'
         - '2.2.27+'
@@ -221,7 +233,7 @@ packages:
       #inst_source: 'ncbi-blast-2.2.28+-src.tar.gz'
       inst_source: 'ncbi-blast-2.2.31+-x64-linux.tar.gz'
       build_cmd: 'mv -v __BBDIR__/../src/blast/ncbi-blast-2.2.31+ __PACKDIR__/ncbi-blast' 
-      bin_dir: '/ncbi-blast/bin'
+      bin_dir: '/bin'
       key: 'blast_dir'
       download_url: 'http://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download'
 
@@ -229,6 +241,7 @@ packages:
       binary: 'bwa'
       version: 
         - '0.7.5a-r405'
+        - '0.7.15-r1140'
       version_test: "__BINARY__  2>&1|grep Version|awk '{print $2'}"
       inst_source: 'bwa-0.7.5a.tar.bz2'
       build_cmd: 'cd __BBDIR__/../src/bwa/bwa-0.7.5a; make 2>&1; mv -v bwa __PACKDIR__/bin/ 2>&1;'
@@ -241,6 +254,7 @@ packages:
       version: 
         - '22.3'
         - '24.3'
+        - '25.3'
       version_test: "__BINARY__  --help 2>&1|grep tbl2asn|awk '{print $2}'"
       inst_source: 'linux64.tbl2asn.gz'
       build_cmd: 'mv -f __BBDIR__/../src/tbl2asn __PACKDIR__/bin/ 2>&1; chmod +x __PACKDIR__/bin/tbl2asn'
@@ -251,8 +265,9 @@ packages:
     - name: 'abyss'
       binary: 'ABYSS'
       version:
-        - '1.9.0'
         - '1.3.4'
+        - '1.9.0'
+        - '2.0.2'
       version_test: "__BINARY__ --version|grep ABYSS|awk '{print $3}'"
       inst_source: 'abyss-1.9.0.tar.gz'
       build_cmd: 'cd __BBDIR__/../src/abyss/abyss-1.9.0; wget http://downloads.sourceforge.net/project/boost/boost/1.56.0/boost_1_56_0.tar.bz2; tar jxf boost_1_56_0.tar.bz2; ./configure --without-sparsehash --prefix=__PACKDIR__ 2>&1; make 2>&1; make install 2>&1;'
@@ -263,6 +278,7 @@ packages:
     - name: 'spades'
       binary: 'spades.py'
       version: 
+        - 'v3.10.1'
         - 'v.3.6.1'
         - 'v.3.6.0'
         - 'v.2.3.0'
@@ -317,6 +333,7 @@ packages:
       version_test: "__BINARY__ --help|grep ^asn2gb|awk '{print $2}'"
       version:
         - 16.6
+        - 18.2
 
     - name: 'amos' 
       binary: 'toAmos'
@@ -347,6 +364,7 @@ packages:
     - name: 'pilon'
       version:
         - '1.20'
+        - '1.22'
       download_url: 'https://github.com/broadinstitute/pilon/releases'
       inst_source: 'pilon.jar'
       build_cmd: 'mkdir -v __PACKDIR__/lib/pilon; cp -v __BBDIR__/../src/pilon.jar __PACKDIR__/lib/pilon/pilon.jar'

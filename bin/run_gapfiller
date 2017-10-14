@@ -69,8 +69,6 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
     my ( $help, $man, $tmpdir, $insert_size, $insert_stddev );
     my $threads = 1;
 
@@ -110,8 +108,7 @@ use Bio::SeqIO;
                            -format => 'fasta' );
         $outIO->write_seq($scaff);
 
-        my $cmd = $config->{'gapfiller_dir'}
-          . "GapFiller.pl -s $tmpdir/gapfiller/unfilled_scaffold_$i -l library.txt -T $threads -i 20 -b gapfilled_$i >> $tmpdir/gapfiller/gapfiller.log 2>&1";
+        my $cmd = "GapFiller.pl -s $tmpdir/gapfiller/unfilled_scaffold_$i -l library.txt -T $threads -i 20 -b gapfilled_$i >> $tmpdir/gapfiller/gapfiller.log 2>&1";
 
         #GapFiller will fail on singleton scaffolds, so wrap the system call in an eval,
         # and if it hasn't succeeded just symlink in the original file

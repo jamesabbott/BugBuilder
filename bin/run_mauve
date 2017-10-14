@@ -72,8 +72,10 @@ use warnings;
 use strict;
 
 use FindBin;
-use YAML::XS qw(LoadFile);
+use lib "$FindBin::Bin/../lib";
+
 use Getopt::Long;
+use BugBuilder::Config;
 use Pod::Usage;
 use File::Basename;
 use Carp qw(croak cluck);
@@ -81,7 +83,9 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+
+    my $bb_config = BugBuilder::Config->new();
+    my $config = $bb_config->get_config();
 
     my ( $help, $man, $reference, $contigs, $run, $tmpdir, $scaff_dir );
 

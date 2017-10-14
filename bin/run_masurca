@@ -71,7 +71,9 @@ use warnings;
 use strict;
 
 use FindBin;
-use YAML::XS qw(LoadFile);
+use lib "$FindBin::Bin/../lib";
+
+use BugBuilder::Config;
 use Getopt::Long;
 use Pod::Usage;
 use Carp qw(croak cluck);
@@ -81,7 +83,8 @@ use File::Find::Rule;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+    my $bb_config = BugBuilder::Config->new();
+     my $config = $bb_config->get_config();
 
     my ( $help, $man, $fastq1, $fastq2, $long_fastq, $insert_size, $insert_stddev, $threads, $category, $tmpdir, );
 
@@ -162,7 +165,7 @@ use File::Find::Rule;
     print TEMPLATE $template->output();
     close TEMPLATE;
 
-    my $cmd = $config->{'masurca_dir'} . "/masurca config.txt";
+    my $cmd = "masurca config.txt";
     print "running $cmd...\n";
     system($cmd) == 0 or croak " Error executing $cmd: $! ";
 

@@ -152,6 +152,9 @@ Email j.abbott@imperial.ac.uk
 use warnings;
 use strict;
 
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
 use Archive::Zip qw(:ERROR_CODES :CONSTANTS);
 use Bio::SeqIO;
 use Bio::SearchIO;
@@ -159,6 +162,7 @@ use Bio::Seq;
 use Bio::SeqFeature::Generic;
 use Bio::Search::Tiling::MapTiling;
 use Bio::DB::Fasta;
+use BugBuilder::Config;
 use Cwd;
 use DateTime;
 use File::Temp qw(tempdir);
@@ -169,7 +173,6 @@ use File::Basename;
 use File::Find::Rule;
 use File::Tee qw(tee);
 use File::Which qw(which);
-use FindBin;
 use Getopt::Long;
 use Parallel::ForkManager;
 use PerlIO::gzip;
@@ -181,8 +184,8 @@ use YAML::XS qw(LoadFile);
 
 $|++;
 
-my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-set_paths($config);
+my $bb_config = BugBuilder::Config->new();
+my $config = $bb_config->get_config();
 
 {
     my (
@@ -272,7 +275,7 @@ set_paths($config);
     die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) does not exist" if ( defined($fastq1) && ( !-e $fastq1 ) );
     die "\n", RED, "ERROR: ", RESET, "fastq_2 ($fastq2) does not exist" if ( defined($fastq2) && ( !-e $fastq2 ) );
     die "\n", RED, "ERROR: ", RESET, "--fastq1 and --fastq2 arguments may only be specified once..." if ($fastq_error);
-    die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) and fastq2 ($fastq2) are the same" if ( $fastq1 eq $fastq2 &! $long_fastq);
+    die "\n", RED, "ERROR: ", RESET, "fastq_1 ($fastq1) and fastq2 ($fastq2) are the same" if ( defined($fastq1) && defined($fastq2) && ($fastq1 eq $fastq2));
     die "\n", RED, "ERROR: ", RESET, "Invalid mode: $mode" unless ( $mode eq 'submission' || $mode eq 'draft' );
     die "\n", RED, "ERROR: ", RESET, "Draft mode requires a reference genome to be provided"
       if ( $mode eq 'draft' & !$reference );
@@ -544,40 +547,49 @@ sub set_paths {
 
     # Although we execute tools using fully qualified paths,
     # some of these expect certain things to be on path...
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $FindBin::Bin;
-    $ENV{'PATH'} = $ENV{'PATH'} . ":" . "$FindBin::Bin/../packages/bin";
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'R_dir'} . '/bin'
-      if ( $config->{'R_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'blast_dir'}
-      if ( $config->{'blast_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'mummer_dir'}
-      if ( $config->{'mummer_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'ncbi_utils_dir'}
-      if ( $config->{'ncbi_utils_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'tbl2asn_dir'}
-      if ( $config->{'tbl2asn_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'asn2gb_dir'}
-      if ( $config->{'asn2gb_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'aragorn_dir'} . '/bin'
-      if ( $config->{'aragorn_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'prodigal_dir'}
-      if ( $config->{'prodigal_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'hmmer3_dir'} . '/bin'
-      if ( $config->{'hmmer3_dir'} );
-
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $FindBin::Bin;
+    #$ENV{'PATH'} = $ENV{'PATH'} . ":" . "$FindBin::Bin/../packages/bin";
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'R_dir'} . '/bin'
+    #  if ( $config->{'R_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'blast_dir'}
+    #  if ( $config->{'blast_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'mummer_dir'}
+    #  if ( $config->{'mummer_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'ncbi_utils_dir'}
+    #  if ( $config->{'ncbi_utils_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'tbl2asn_dir'}
+    #  if ( $config->{'tbl2asn_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'asn2gb_dir'}
+    #  if ( $config->{'asn2gb_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'aragorn_dir'} . '/bin'
+    #  if ( $config->{'aragorn_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'prodigal_dir'}
+    #  if ( $config->{'prodigal_dir'} );
+    #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'hmmer3_dir'} . '/bin'
+    #  if ( $config->{'hmmer3_dir'} );
+#
     #$ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'rnammer_dir'}
     #  if ( $config->{'rnammer_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'infernal_dir'} . '/bin'
-      if ( $config->{'infernal_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'prokka_dir'}
-      if ( $config->{'prokka_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'barrnap_dir'}
-      if ( $config->{'barrnap_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ":" . $config->{'mauve_dir'} . '/linux-x64'
-      if ( $config->{'mauve_dir'} );
-    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'abyss_sealer_dir'}
-      if ( $config->{'abyss_sealer_dir'} );
-
+#    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'infernal_dir'} . '/bin'
+#      if ( $config->{'infernal_dir'} );
+#    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'prokka_dir'}
+#      if ( $config->{'prokka_dir'} );
+#    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'barrnap_dir'}
+#      if ( $config->{'barrnap_dir'} );
+#    $ENV{'PATH'} = $ENV{'PATH'} . ":" . $config->{'mauve_dir'} . '/linux-x64'
+#      if ( $config->{'mauve_dir'} );
+#    $ENV{'PATH'} = $ENV{'PATH'} . ':' . $config->{'abyss_sealer_dir'}
+#      if ( $config->{'abyss_sealer_dir'} );
+	if ($config->{'picard_dir'}=~/\$ENV\{'PICARD_HOME'\}/) {
+		my $dir = eval $config->{'picard_dir'};
+		$config->{'picard_dir'} = $dir;	
+	}
+	if ($config->{'mauve_dir'}=~/\$ENV\{'MAUVE_HOME'\}/) {
+		my $dir = eval $config->{'mauve_dir'};
+		$config->{'mauve_dir'} = $dir;	
+	}
+	print $config->{'mauve_dir'},"\n";
+exit;
     if ( $config->{'python_lib_path'} ) {
         if ( defined( $ENV{'PYTHONPATH'} ) ) {
             $ENV{'PYTHONPATH'} = "$ENV{'PYTHONPATH'}:" . $config->{'python_lib_path'};
@@ -712,7 +724,7 @@ sub select_tools {
 
         }
     } else {
-		$linkage_evidence = 'paired-end';
+		$linkage_evidence = 'paired-ends';
     }
 
     my @available_mergers = map { $_->[0] }
@@ -739,7 +751,7 @@ sub select_tools {
 
     if ($finisher) {
         unless ( grep ( /^$finisher$/i, @available_finishers ) ) {
-            die "\nError: $finisher is not a valid finishiing-tool\n\n" . "The following tools are configured: ",
+            die "\nError: $finisher is not a valid finishing-tool\n\n" . "The following tools are configured: ",
               join( ", ", @available_finishers ), "\n\n";
         }
         my $conf_finishers = $config->{'finishers'};
@@ -1046,7 +1058,7 @@ sub run_fastqc {
     my $fastq2     = readlink("$tmpdir/read2.fastq");
     my $long_fastq = readlink("$tmpdir/long.fastq");
 
-    my $cmd = $config->{'fastqc_dir'} . "fastqc -t 4 -o $tmpdir/fastqc ";
+    my $cmd = "fastqc -t 4 -o $tmpdir/fastqc ";
     $cmd .= " $tmpdir/$fastq1"     if ($fastq1);
     $cmd .= " $tmpdir/$fastq2"     if ($fastq2);
     $cmd .= " $tmpdir/$long_fastq" if ($long_fastq);
@@ -1176,19 +1188,18 @@ sub assess_reads {
     }
 
     #determin mean read length and stddev....
-    my ( $mean, $stddev );
+    my $mean=0; 
+    my $stddev =0;
 
     #  unless ( defined($long_mean) ) {
     if ( $#mean == 1 ) {
         $mean   = sprintf( "%d", ( ( $mean[0] + $mean[1] ) / 2 ) );
         $stddev = sprintf( "%d", ( ( $stddev[0] + $stddev[1] ) / 2 ) );
     }
-    else {
+    elsif ($mean[0] && $mean[1]) {
         $mean   = sprintf( "%d", $mean[0] );
         $stddev = sprintf( "%d", $stddev[0] );
-
-        #      }
-    }
+    } 
 
     my $type;
 
@@ -1343,15 +1354,15 @@ sub quality_trim_reads {
         mkdir "$tmpdir/qc_trim" or die "Error creating $tmpdir/qc_trim: $!";
         chdir "$tmpdir/qc_trim" or die "Error running chdir $tmpdir/qc_trim: $!";
 
-        my $cmd = $config->{'sickle_dir'};
+        my $cmd;
         if ( -e "$tmpdir/read2.fastq" ) {
-            $cmd .=
+            $cmd =
                 "sickle pe -f $tmpdir/read1.fastq "
               . "-r $tmpdir/read2.fastq -t $encoding -q $qv -l $min_length -o read1.fastq -p read2.fastq "
               . "-s singles.fastq > sickle.log";
         }
         else {
-            $cmd .=
+            $cmd =
               "sickle se -f $tmpdir/read1.fastq " . "-t $encoding -q $qv -l $min_length -o read1.fastq > sickle.log";
         }
 
@@ -1425,7 +1436,7 @@ sub downsample_reads {
     my $read_bases       = shift;
     my $mean_read_length = shift;
 
-    my $seqtk_dir = $config->{'seqtk_dir'};
+    #my $seqtk_dir = $config->{'seqtk_dir'};
     mkdir "$tmpdir/downsampling" or die "Error creating  $tmpdir/downsampling: $!";
     chdir "$tmpdir/"             or die "Error chdiring to $tmpdir/ downsampling : $! ";
     print "Projected Coverage: ${orig_coverage}x: Downsampling reads to ${coverage}x...\n";
@@ -1433,7 +1444,7 @@ sub downsample_reads {
         if ( -e "$tmpdir/$fastq" ) {
             my $frac = ( $coverage / $orig_coverage );
             my $required_reads = ( ( $frac * $read_bases ) / $mean_read_length );
-            my $cmd = "$seqtk_dir/seqtk sample -s100 $tmpdir/$fastq $required_reads > $tmpdir/downsampling/$fastq";
+            my $cmd = "seqtk sample -s100 $tmpdir/$fastq $required_reads > $tmpdir/downsampling/$fastq";
             system($cmd) == 0 or die " Error running $cmd: $! ";
         }
     }
@@ -1530,10 +1541,8 @@ sub run_assembler {
             $genome_size += $ref->length();
         }
     }
-    my $asm_dir = $config->{"${assembler}_dir"};
     foreach ( $cmd, $contig_output, $scaffold_output ) {
         s/__BUGBUILDER_BIN__/$FindBin::Bin/g;
-        s/__ASMDIR__/$asm_dir/;
         s/__TMPDIR__/$tmpdir/g;
         s/__FASTQ1__/$tmpdir\/read1.fastq/;
         s/__FASTQ2__/$tmpdir\/read2.fastq/;
@@ -1548,7 +1557,7 @@ sub run_assembler {
         s/__READ_LENGTH__/$read_length/ if ($read_length);
         s/__INSSIZE__/$insert_size/     if ($insert_size);
         s/__INSSD__/$stddev/            if ($stddev);
-        s/__THREADS__/$threads/;
+        s/__THREADS__/$threads/g;
     }
 
     $cmd .= " > $tmpdir/$assembler.log 2>&1 ";
@@ -1649,6 +1658,7 @@ sub merge_assemblies {
             $create_dir    = $tool->{'create_dir'};
             $contig_output = $tool->{'contig_output'};
         }
+    }
         if ($create_dir) {
             mkdir "$tmpdir/$method" or die "Error creating $tmpdir/$method: $! ";
             chdir "$tmpdir/$method" or die "Error chdiring to $tmpdir/$method: $!";
@@ -1670,7 +1680,6 @@ sub merge_assemblies {
 
         return (0);
 
-    }
 }
 
 ######################################################################
@@ -1754,10 +1763,6 @@ sub align_reads {
     my $read_length = shift;
     my $downsample  = shift;
 
-    my $bwa_dir      = $config->{'bwa_dir'};
-    my $samtools_dir = $config->{'samtools_dir'};
-    my $seqtk_dir    = $config->{'seqtk_dir'};
-
     mkdir "$tmpdir/bwa"
       or die "Error creating $tmpdir/bwa: $!"
       if ( !-d "$tmpdir/bwa" );
@@ -1768,10 +1773,10 @@ sub align_reads {
     if ($downsample) {
 
         message("Downsampling reads for insert-size estimation...");
-        my $cmd = "$seqtk_dir/seqtk sample -s100 $tmpdir/read1.fastq 10000 > $tmpdir/bwa/read1.fastq";
+        my $cmd = "seqtk sample -s100 $tmpdir/read1.fastq 10000 > $tmpdir/bwa/read1.fastq";
         system($cmd) == 0 or die " Error running $cmd: $! ";
         if ( -e "$tmpdir/read2.fastq" ) {
-            $cmd = "$seqtk_dir/seqtk sample -s100 $tmpdir/read2.fastq 10000 > $tmpdir/bwa/read2.fastq";
+            $cmd = "seqtk sample -s100 $tmpdir/read2.fastq 10000 > $tmpdir/bwa/read2.fastq";
             system($cmd) == 0 or die " Error running $cmd: $!";
 
         }
@@ -1783,25 +1788,25 @@ sub align_reads {
 
     message("BWA aligning reads vs $reference...");
 
-    my $cmd = "$bwa_dir/bwa index $tmpdir/bwa/$reference >$tmpdir/bwa/bwa_index.log 2>&1";
+    my $cmd = "bwa index $tmpdir/bwa/$reference >$tmpdir/bwa/bwa_index.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
     # Use bwa-bwt for 'short' reads less than 100 bp, and bwa-mem for longer reads
     if ( $read_length <= 100 ) {
-        $cmd = "$bwa_dir/bwa aln -t 4 $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $tmpdir/bwa/read1.sai"
+        $cmd = "bwa aln -t 4 $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $tmpdir/bwa/read1.sai"
           . " 2> $tmpdir/bwa/bwa_sai1.log";
         system($cmd) == 0 or die "Error running $cmd";
         if ( -e "$tmpdir/read2.fastq" ) {
-            $cmd = "$bwa_dir/bwa aln -t 4 $tmpdir/bwa/$reference $tmpdir/bwa/read2.fastq > $tmpdir/bwa/read2.sai"
+            $cmd = "bwa aln -t 4 $tmpdir/bwa/$reference $tmpdir/bwa/read2.fastq > $tmpdir/bwa/read2.sai"
               . " 2> $tmpdir/bwa/bwa_sai2.log";
             system($cmd) == 0 or die "Error running $cmd";
-            $cmd = "$bwa_dir/bwa sampe $tmpdir/bwa/$reference $tmpdir/bwa/read1.sai $tmpdir/bwa/read2.sai "
+            $cmd = "bwa sampe $tmpdir/bwa/$reference $tmpdir/bwa/read1.sai $tmpdir/bwa/read2.sai "
               . "$tmpdir/bwa/read1.fastq $tmpdir/bwa/read2.fastq";
             $cmd .= " 2> $tmpdir/bwa/sampe.log > $tmpdir/bwa/$reference.sam";
             system($cmd) == 0 or die "Error running $cmd";
         }
         else {
-            $cmd = "$bwa_dir/bwa samse $tmpdir/bwa/$reference $tmpdir/bwa/read1.sai $tmpdir/read1.fastq";
+            $cmd = "bwa samse $tmpdir/bwa/$reference $tmpdir/bwa/read1.sai $tmpdir/read1.fastq";
             $cmd .= "2> $tmpdir/bwa/samse.log > $tmpdir/bwa/$reference.sam";
             system($cmd) == 0 or die "Error running $cmd";
         }
@@ -1810,7 +1815,7 @@ sub align_reads {
         if ( !-e "$tmpdir/read2.fastq" ) {
 
             # single-ended long reads
-            $cmd = "$bwa_dir/bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $reference.sam "
+            $cmd = "bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq > $reference.sam "
               . "2>$tmpdir/bwa/bwa_mem.log";
             system($cmd) == 0 or die "Error running $cmd: $!";
         }
@@ -1818,17 +1823,17 @@ sub align_reads {
 
             # paired-end long reads
             $cmd =
-"$bwa_dir/bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq $tmpdir/bwa/read2.fastq >$reference.sam "
+"bwa mem -t 4 -M $tmpdir/bwa/$reference $tmpdir/bwa/read1.fastq $tmpdir/bwa/read2.fastq >$reference.sam "
               . "2>$tmpdir/bwa/bwa_mem.log";
             system($cmd) == 0 or die "Error running $cmd: $!";
         }
     }
 
-    $cmd = "$samtools_dir/samtools view -q 10 -Sb $tmpdir/bwa/$reference.sam 2>$tmpdir/bwa/samtoolsview.log"
-      . "|$samtools_dir/samtools sort -o $tmpdir/bwa/$reference.bam -";
+    $cmd = "samtools view -q 10 -Sb $tmpdir/bwa/$reference.sam 2>$tmpdir/bwa/samtoolsview.log"
+      . "|samtools sort -o $tmpdir/bwa/$reference.bam -";
     system($cmd) == 0 or die "Error running $cmd";
 
-    $cmd = "$samtools_dir/samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
+    $cmd = "samtools index $tmpdir/bwa/$reference.bam 2>$tmpdir/bwa/samtools_index.log";
     system($cmd) == 0                 or die "Error running $cmd";
     unlink("$tmpdir/bwa/read1.fastq") or die " Error unlinking $tmpdir/bwa/read1.fastq: $! ";
     unlink("$tmpdir/bwa/read2.fastq")
@@ -1868,8 +1873,8 @@ sub get_insert_stats {
       or die "Error chdiring to $tmpdir/insert_stats : $! ";
 
     # picard command for earlier versions....
-    #my $cmd = "java -jar " . $config->{'picard_dir'} . "CollectInsertSizeMetrics.jar ";
-    my $cmd = "java -jar " . $config->{'picard_dir'} . "picard.jar CollectInsertSizeMetrics ";
+    #my $cmd = "java -jar " . $config->{'picard_dir'} . "/CollectInsertSizeMetrics.jar ";
+    my $cmd = "java -jar " . $config->{'picard_dir'} . "/picard.jar CollectInsertSizeMetrics ";
     $cmd .= "INPUT=$tmpdir/bwa/$reference.bam HISTOGRAM_FILE=insert_histogram.pdf OUTPUT=insert_stats.txt ";
     $cmd .=
       " QUIET=true VERBOSITY=ERROR ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT > CollectInsertMetrics.log 2>&1";
@@ -1923,8 +1928,8 @@ sub check_id {
     chdir "$tmpdir/id_check"
       or die "Error chdiring to $tmpdir/id_check: $! ";
 
-    my $cmd = $config->{'blast_dir'}
-      . "/blastn -query $tmpdir/contigs.fasta -subject $tmpdir/reference_parsed_ids.fasta -outfmt 5 -evalue 0.01 -out blastout.xml 2>&1 > blastn.log";
+    my $cmd = 
+       "/blastn -query $tmpdir/contigs.fasta -subject $tmpdir/reference_parsed_ids.fasta -outfmt 5 -evalue 0.01 -out blastout.xml 2>&1 > blastn.log";
     system($cmd) == 0 or die "Error running $cmd: $!";
 
     my $blio = Bio::SearchIO->new( -format => 'blastxml',
@@ -1997,7 +2002,6 @@ sub run_scaffolder {
     message(" Starting $scaffolder");
 
     my ( $cmd, $scaffold_output, $unscaffolded_output, $create, $linkage_evidence, $default_args );
-    my $blast_dir = $config->{'blast_dir'};
 
     my $scaffolders = $config->{'scaffolders'};
     foreach my $conf_scaffolder (@$scaffolders) {
@@ -2047,9 +2051,9 @@ sub run_scaffolder {
             my $fasta_db = Bio::DB::Fasta->new("$run_dir/contigs.fasta");
 
             my $blast_cmd =
-              "$blast_dir/makeblastdb -in reference.fasta -dbtype nucl -parse_seqids 2>&1 > makeblastdb.log";
+              "makeblastdb -in reference.fasta -dbtype nucl -parse_seqids 2>&1 > makeblastdb.log";
             system($blast_cmd) == 0 or die "Error building reference.fasta blast database: $!";
-            $blast_cmd = "$blast_dir/blastn -query $contigs -task blastn -db reference.fasta "
+            $blast_cmd = "blastn -query $contigs -task blastn -db reference.fasta "
               . "-out clusters.blast  2>&1 > blastn.log";
             system($blast_cmd) == 0 or die "Error executing $blast_cmd: $!";
 
@@ -2646,15 +2650,14 @@ sub amosvalidate {
 
     system($cmd) == 0 or die "Error executing $cmd: $!";
 
-    $cmd = $config->{'amos_dir'}
-      . "bank-transact -cb $tmpdir/amos/assembly.bnk -m $tmpdir/amos/amos.afg  > $tmpdir/amos/bank-transact.log 2>&1";
+    $cmd = "bank-transact -cb $tmpdir/amos/assembly.bnk -m $tmpdir/amos/amos.afg  > $tmpdir/amos/bank-transact.log 2>&1";
     system($cmd) == 0 or die "Error executing $cmd: $!";
 
     message("Running amosvalidate");
 
     # read amosvalidate script and comment out '4xx' lines, which run SNP checks and are extreeeeemly slow....
-    open AMOSVALIDATE, $config->{'amos_dir'} . "/amosvalidate"
-      or die "Error opening " . $config->{'amos_dir'} . "/amosvalidate: $!";
+    open AMOSVALIDATE,  "amosvalidate"
+      or die "Error opening amosvalidate: $!";
     open SCRIPT, ">$tmpdir/amos/amosvalidate" or die "Error opening $tmpdir/amos/amosvalidate: $!";
     while ( my $line = <AMOSVALIDATE> ) {
         $line =~ s/^4/#4/;
@@ -2711,14 +2714,11 @@ sub find_origin {
 
     message("Attempting to identify origin...");
 
-    my $cmd = $config->{'mummer_dir'}
-      . "/nucmer $tmpdir/reference_parsed_ids.fasta $tmpdir/scaffolds.fasta -p $ori_dir/ori > $ori_dir/nucmer.log 2>&1";
+    my $cmd =  "nucmer $tmpdir/reference_parsed_ids.fasta $tmpdir/scaffolds.fasta -p $ori_dir/ori > $ori_dir/nucmer.log 2>&1";
     system($cmd) == 0 or die "Error executing $cmd: $!";
-    $cmd =
-      $config->{'mummer_dir'} . "/delta-filter -1 $ori_dir/ori.delta 2>$ori_dir/delta-filter.log > $ori_dir/ori.filter";
+    $cmd = "delta-filter -1 $ori_dir/ori.delta 2>$ori_dir/delta-filter.log > $ori_dir/ori.filter";
     system($cmd) == 0 or die "Error executing $cmd: $!";
-    $cmd =
-      $config->{'mummer_dir'} . "/show-coords -H $ori_dir/ori.filter 2>$ori_dir/show-coords.log > $ori_dir/ori.coords";
+    $cmd =  "show-coords -H $ori_dir/ori.filter 2>$ori_dir/show-coords.log > $ori_dir/ori.coords";
     system($cmd) == 0 or die "Error executing $cmd: $!";
 
     open COORDS, "$ori_dir/ori.coords"
@@ -2817,14 +2817,11 @@ sub order_scaffolds {
 
     message("Orienting scaffolds vs. reference...");
 
-    my $cmd = $config->{'mummer_dir'}
-      . "/nucmer $tmpdir/$reference $tmpdir/scaffolds.fasta -p $tmpdir/orientating/ori2 > $tmpdir/orientating/nucmer2.log 2>&1";
+    my $cmd = "nucmer $tmpdir/$reference $tmpdir/scaffolds.fasta -p $tmpdir/orientating/ori2 > $tmpdir/orientating/nucmer2.log 2>&1";
     system($cmd) == 0 or die "Error executing $cmd: $!";
-    $cmd = $config->{'mummer_dir'}
-      . "/delta-filter -1 $tmpdir/orientating/ori2.delta 2>$tmpdir/orientating/delta-filter2.log > $tmpdir/orientating/ori2.filter";
+    $cmd = "delta-filter -1 $tmpdir/orientating/ori2.delta 2>$tmpdir/orientating/delta-filter2.log > $tmpdir/orientating/ori2.filter";
     system($cmd) == 0 or die "Error executing $cmd: $!";
-    $cmd = $config->{'mummer_dir'}
-      . "/show-coords -H $tmpdir/orientating/ori2.filter 2>$tmpdir/orientating/show-coords2.log > $tmpdir/orientating/ori2.coords";
+    $cmd =  "show-coords -H $tmpdir/orientating/ori2.filter 2>$tmpdir/orientating/show-coords2.log > $tmpdir/orientating/ori2.coords";
     system($cmd) == 0 or die "Error executing $cmd: $!";
 
     open COORDS, "$tmpdir/orientating/ori2.coords"
@@ -3011,40 +3008,34 @@ sub run_varcaller {
 
     symlink( "$tmpdir/reference_parsed_ids.fasta", "$vardir/reference.fasta" )
       or die "Error creating $vardir/reference.fasta symlink: $!";
-    $cmd = $config->{'bwa_dir'} . symlink( "$tmpdir/read1.fastq", "$vardir/read1.fastq" )
+    $cmd =  symlink( "$tmpdir/read1.fastq", "$vardir/read1.fastq" )
       or die "Error creating symlink: $! ";
     symlink( "$tmpdir/read2.fastq", "$vardir/read2.fastq" )
       if ( -e "$tmpdir/read2.fastq" )
       or die "Error creating symlink: $! ";
 
     print "BWA aligning reads to assembly...\n";
-    my $samtools_dir = $config->{'samtools_dir'};
 
-    $cmd = $config->{'bwa_dir'} . "/bwa index $vardir/reference.fasta >$vardir/bwa_index.log 2>&1";
+    $cmd = "bwa index $vardir/reference.fasta >$vardir/bwa_index.log 2>&1";
     system($cmd) == 0 or die " Error running $cmd";
 
     # Use bwa-bwt for 'short' reads less than 100 bp, and bwa-mem for longer reads
     if ( $read_length <= 100 ) {
-        $cmd =
-            $config->{'bwa_dir'}
-          . "/bwa aln -t $threads $vardir/reference.fasta $vardir/read1.fastq > $vardir/read1.sai"
+        $cmd = "bwa aln -t $threads $vardir/reference.fasta $vardir/read1.fastq > $vardir/read1.sai"
           . " 2> $vardir/bwa_sai1.log";
         system($cmd) == 0 or die "Error running $cmd";
         if ( -e "$vardir/read2.fastq" ) {
             $cmd =
-                $config->{'bwa_dir'}
-              . "/bwa aln -t $threads $vardir/reference.fasta $vardir/read2.fastq > $vardir/read2.sai"
+               "bwa aln -t $threads $vardir/reference.fasta $vardir/read2.fastq > $vardir/read2.sai"
               . " 2> $vardir/bwa_sai2.log";
             system($cmd) == 0 or die "Error running $cmd";
-            $cmd =
-                $config->{'bwa_dir'}
-              . "/bwa sampe $vardir/reference.fasta $vardir/read1.sai $vardir/read2.sai "
+            $cmd = "bwa sampe $vardir/reference.fasta $vardir/read1.sai $vardir/read2.sai "
               . "$vardir/read1.fastq $vardir/read2.fastq";
             $cmd .= " 2> $vardir/sampe.log > $vardir/scaffolds.sam";
             system($cmd) == 0 or die "Error running $cmd";
         }
         else {
-            $cmd = $config->{'bwa_dir'} . "/bwa samse $vardir/reference.fasta $vardir/read1.sai $vardir/read1.fastq";
+            $cmd = "bwa samse $vardir/reference.fasta $vardir/read1.sai $vardir/read1.fastq";
             $cmd .= "2> $vardir/samse.log > $vardir/scaffolds.sam";
             system($cmd) == 0 or die "Error running $cmd";
         }
@@ -3053,28 +3044,24 @@ sub run_varcaller {
         if ( !-e "$vardir/read2.fastq" ) {
 
             # single-ended long reads
-            $cmd =
-                $config->{'bwa_dir'}
-              . "/bwa mem -t $threads -M $vardir/reference.fasta $vardir/read1.fastq > reference.sam "
+            $cmd = "bwa mem -t $threads -M $vardir/reference.fasta $vardir/read1.fastq > reference.sam "
               . "2>$vardir/bwa_mem.log";
             system($cmd) == 0 or die "Error running $cmd: $!";
         }
         else {
 
             # paired-end long reads
-            $cmd =
-                $config->{'bwa_dir'}
-              . "/bwa mem -t $threads -M $vardir/reference.fasta $vardir/read1.fastq $vardir/read2.fastq >reference.sam "
+            $cmd = "bwa mem -t $threads -M $vardir/reference.fasta $vardir/read1.fastq $vardir/read2.fastq >reference.sam "
               . "2>$vardir/bwa_mem.log";
             system($cmd) == 0 or die "Error running $cmd: $!";
         }
     }
 
-    $cmd = "$samtools_dir/samtools view -q 10 -Sb $vardir/reference.sam 2>$vardir/samtoolsview.log"
-      . "|$samtools_dir/samtools sort - $vardir/reference";
+    $cmd = "samtools view -q 10 -Sb $vardir/reference.sam 2>$vardir/samtoolsview.log"
+      . "|samtools sort -o $vardir/reference.bam -";
     system($cmd) == 0 or die "Error running $cmd";
 
-    $cmd = "$samtools_dir/samtools index $vardir/reference.bam 2>$vardir/samtools_index.log";
+    $cmd = "samtools index $vardir/reference.bam 2>$vardir/samtools_index.log";
     system($cmd) == 0 or die "Error running $cmd";
 
     $caller_cmd =~ s/__BUGBUILDER_BIN__/$FindBin::Bin/;
@@ -3129,21 +3116,17 @@ sub build_comparisons {
     else {
         $query = "$tmpdir/contigs.fasta";
     }
-    my $cmd =
-        $config->{'blast_dir'}
-      . "/blastn  -query $query -subject $tmpdir/$reference "
+    my $cmd = "blastn  -query $query -subject $tmpdir/$reference "
       . "-out $tmpdir/comparisons/comparison_vs_$ref_id.blastout -outfmt 6 > $tmpdir/comparisons/blast.log";
     system($cmd) == 0 or die "Error running $cmd";
 
     # also build a mummerplot in png format...
-    $cmd = $config->{'mummer_dir'} . "nucmer --prefix $ref_id $tmpdir/$reference $query >nucmer.log 2>&1";
+    $cmd = "nucmer --prefix $ref_id $tmpdir/$reference $query >nucmer.log 2>&1";
     system($cmd) == 0 or die "Error running $cmd";
-    $cmd = $config->{'mummer_dir'}
-      . "mummerplot -large --filter --layout -p $ref_id -t png -R $tmpdir/$reference -Q $query $ref_id.delta  >mummerplot.log 2>&1";
+    $cmd = "mummerplot -large --filter --layout -p $ref_id -t png -R $tmpdir/$reference -Q $query $ref_id.delta  >mummerplot.log 2>&1";
     system($cmd) == 0 or die "Error running $cmd";
 
-    $cmd = $config->{'mummer_dir'}
-      . "mummerplot -large --filter --layout -c -p ${ref_id}_pip -t png -R $tmpdir/$reference -Q $query $ref_id.delta  >mummerplot_pip.log 2>&1";
+    $cmd = "mummerplot -large --filter --layout -c -p ${ref_id}_pip -t png -R $tmpdir/$reference -Q $query $ref_id.delta  >mummerplot_pip.log 2>&1";
     system($cmd) == 0 or die "Error running $cmd";
 
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";
@@ -3175,9 +3158,8 @@ sub get_contig_to_iid_mapping {
     my $tmpdir = shift;
     message("Extracting contig -> AMOS iid mapping...");
 
-    my $amos_dir = $config->{'amos_dir'};
     my $mapping =
-`$amos_dir/bank-report -i -p -b $tmpdir/amos/assembly.bnk CTG 2> /dev/null|cut -f2,3 > $tmpdir/amos/ctg_to_iid.txt`;
+`bank-report -i -p -b $tmpdir/amos/assembly.bnk CTG 2> /dev/null|cut -f2,3 > $tmpdir/amos/ctg_to_iid.txt`;
 
     return (0);
 }
@@ -3427,10 +3409,7 @@ sub merge_annotations {
 sub run_cgview {
 
     my $tmpdir = shift;
-
     my $cgview_dir  = $config->{'cgview_dir'};
-    my $xml_creator = $cgview_dir . "cgview_xml_builder/cgview_xml_builder.pl";
-    my $java        = $config->{'java'};
 
     message("Creating genome visualisaton...");
 
@@ -3448,10 +3427,10 @@ sub run_cgview {
         $outfile = "contigs_cgview.png";
     }
 
-    my $cmd = "$xml_creator -sequence $embl -output scaffolds_cgview.xml -gc_skew T >xml_creator.log 2>&1";
+    my $cmd = "cgview_xml_builder.pl -sequence $embl -output scaffolds_cgview.xml -gc_skew T >xml_creator.log 2>&1";
     system("$cmd") == 0 or die "Error running $cmd: $!";
 
-    $cmd = "${java} -jar ${cgview_dir}/cgview.jar -f png -i scaffolds_cgview.xml -o $outfile >cgview.log 2>&1";
+    $cmd = "java -jar ${cgview_dir}/cgview.jar -f png -i scaffolds_cgview.xml -o $outfile >cgview.log 2>&1";
     system("$cmd") == 0 or die "Error running $cmd: $!";
 
     chdir $tmpdir or die "Error chdiring to $tmpdir: $!";

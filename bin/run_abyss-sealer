@@ -69,8 +69,6 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
     my ( $help, $man, $tmpdir, $encoding, $threads );
 
     my $result = GetOptions(
@@ -107,9 +105,7 @@ use Bio::SeqIO;
     # --no-trim-masked is critical. Contrary to --help output, trimming of
     # lower case nucleotides is the default in version 1.9.0, and everything is lower case after
     # the contig orientation step, except for the Ns.
-    my $cmd =
-        $config->{'abyss_dir'}
-      . "abyss-sealer --no-trim-masked -k95 -k90 -k80 -P 10 -j $threads $enc_opt -o $filled_prefix -S $tmpdir/scaffolds.fasta "
+    my $cmd = "abyss-sealer --no-trim-masked -k95 -k90 -k80 -b 500M -P 10 -j $threads $enc_opt -o $filled_prefix -S $tmpdir/scaffolds.fasta "
       . join( " ", @reads );
 
     ( system($cmd) == 0 ) or die "Error running abyss-sealer";

@@ -81,8 +81,6 @@ use File::Basename;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
     my ( $help, $man, $reference, $contigs, $tmpdir, $scaff_dir );
 
     my $result = GetOptions(
@@ -104,18 +102,16 @@ use File::Basename;
     croak "\n$reference does not exist" unless ( -e $reference );
     croak "\n$contigs does not exist"   unless ( -e $contigs );
 
-    my $cmd = $config->{'mummer_dir'} . "/nucmer $reference $contigs -p $scaff_dir/sis 2>&1 > $scaff_dir/nucmer.log";
+    my $cmd = "nucmer $reference $contigs -p $scaff_dir/sis 2>&1 > $scaff_dir/nucmer.log";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
-    $cmd = $config->{'mummer_dir'}
-      . "/delta-filter -1 $scaff_dir/sis.delta 2>$scaff_dir/delta-filter.log > $scaff_dir/sis.filter";
+    $cmd =  "delta-filter -1 $scaff_dir/sis.delta 2>$scaff_dir/delta-filter.log > $scaff_dir/sis.filter";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
-    $cmd = $config->{'mummer_dir'}
-      . "/show-coords $scaff_dir/sis.filter 2>$scaff_dir/show-coords.log > $scaff_dir/sis.coords";
+    $cmd =  "show-coords $scaff_dir/sis.filter 2>$scaff_dir/show-coords.log > $scaff_dir/sis.coords";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
 
-    $cmd = $config->{'sis_dir'} . "sis.py $scaff_dir/sis.coords > $scaff_dir/sis.sis";
+    $cmd = "sis.py $scaff_dir/sis.coords > $scaff_dir/sis.sis";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
-    $cmd = $config->{'sis_dir'} . "multifasta.py $scaff_dir/sis.sis $contigs";
+    $cmd = "multifasta.py $scaff_dir/sis.sis $contigs";
     system($cmd) == 0 or croak "Error executing $cmd: $!";
 
     my $ref_id = basename($scaff_dir);

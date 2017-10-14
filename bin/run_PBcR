@@ -79,8 +79,6 @@ use Bio::SeqIO;
 
 {
 
-    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
-
     my ( $help, $man, $fastq, $platform, $tmpdir, $genome_size );
 
     my $result = GetOptions(
@@ -101,7 +99,7 @@ use Bio::SeqIO;
     $platform = lc($platform);
     croak "Invalid platform: $platform" unless ( $platform eq 'pacbio' || $platform eq 'minion' );
 
-    chdir "$tmpdir/PBcR" or croak "Could not chdir to $tmpdir/PBcR: $!";
+    chdir "$tmpdir/pbcr" or croak "Could not chdir to $tmpdir/pbcr: $!";
     print "fastq = $fastq\n";
     my $target = readlink($fastq);
     print "target = $target\n";
@@ -112,9 +110,9 @@ use Bio::SeqIO;
         unlink("$fastq") or croak "Error removing $tmpdir/$fastq: $!";
         symlink( "$tmpdir/$target", "$fastq" ) or croak "Error symlinking $fastq:$!";
     }
-    symlink( "$tmpdir/$target", "$tmpdir/PBcR/$target" ) or croak "Error symlinkning $target: $!";
+    symlink( "$tmpdir/$target", "$tmpdir/pbcr/$target" ) or croak "Error symlinkning $target: $!";
 
-    my $cmd = $config->{'celera_dir'} . "/PBcR -libraryname BugBuilder -fastq $fastq ";
+    my $cmd = "PBcR -libraryname BugBuilder -fastq $fastq ";
     $cmd .= " -genomeSize $genome_size" if ( $genome_size ne "__GENOME_SIZE__" );
     if ( $platform eq "pacbio" ) {
         $cmd .= " -s $FindBin::Bin/../etc/PBcR_PacBio.spec";
