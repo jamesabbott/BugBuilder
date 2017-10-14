@@ -3071,7 +3071,7 @@ sub run_varcaller {
     }
 
     $cmd = "$samtools_dir/samtools view -q 10 -Sb $vardir/reference.sam 2>$vardir/samtoolsview.log"
-      . "|$samtools_dir/samtools sort - $vardir/reference";
+      . "|$samtools_dir/samtools sort -o $vardir/reference -";
     system($cmd) == 0 or die "Error running $cmd";
 
     $cmd = "$samtools_dir/samtools index $vardir/reference.bam 2>$vardir/samtools_index.log";
