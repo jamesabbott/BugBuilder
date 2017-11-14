@@ -94,7 +94,8 @@ use Bio::SeqIO;
                              'man'             => \$man,
                            );
 
-    croak "\nUnknown argument: @ARGV" if "@ARGV";
+    # croak "\nUnknown argument: @ARGV" if "@ARGV";
+    my $assembler_args = join(" ", @ARGV);
     pod2usage( verbose => 2 ) if ($man);
     pod2usage( verbose => 1 )
       if ( $help || !$tmpdir || !$long_fastq || !$category || !$genome_size);
@@ -114,7 +115,7 @@ use Bio::SeqIO;
     } elsif (0) {
 	die ("categpry must be either PacBio or MinION");
     }
-    my $cmd = $config->{'canu_dir'} . "canu -p BugBuilder -genomeSize=$genome_size -d ./assembly $readtype $long_fastq ";
+    my $cmd = $config->{'canu_dir'} . "canu -p BugBuilder -genomeSize=$genome_size -d ./assembly $readtype $long_fastq $assembler_args";
 
     print "running $cmd...\n";
     system($cmd) == 0 or croak " Error executing $cmd: $! ";
