@@ -82,7 +82,7 @@ assembler_categories:
       - sspace
   - name: 'long_illumina'
     min_length:  75
-    max_length: 250
+    max_length: 303
     single_fastq: 'optional'
     paired_fastq: 'optional'
     platforms:
@@ -109,13 +109,13 @@ assembler_categories:
       - SIS
   - name: 'long'
     min_length: 500
-    max_length: 50000
+    max_length: 5000000
     long_fastq: 'required'
     platforms:
       - 'PacBio'
       - 'MinION'
     assemblers: 
-      - PBcR
+      - canu
   - name: 'hybrid'
     min_length: 75
     max_length: 50000
@@ -155,6 +155,13 @@ assemblers:
      contig_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.ctg.fasta
      scaffold_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.scf.fasta
      downsample_reads: 0
+   - name: canu
+     create_dir: 0
+     min_length: 300
+     command_se: __BUGBUILDER_BIN__/run_canu --fastq_long __LONG_FASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --platform __PLATFORM__ --genome_size __GENOME_SIZE__
+     contig_output: __TMPDIR__/assembly/BugBuilder.contigs.fasta
+     downsample_reads: 0
+     default_args: stopOnReadQuality=false
    - name: PBcR
      create_dir: 1
      min_length: 500
