@@ -1,0 +1,125 @@
+#!/bin/env perl
+
+######################################################################
+#
+# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_celera $
+# $Author: nickp60 $
+# $Revision: 179 $
+# $Date: 2017-11-13 10:32:17 +0000 (Mon, 13 Nov 2017) $
+#
+# Wrapper for canu assembler to permit use via BugBuilder assembly stage
+#
+# This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
+# and is distributed under the Artistic License 2.0 - see accompanying LICENSE
+# file for details
+
+#
+######################################################################
+
+=pod
+
+=head1 NAME
+
+run_canu
+
+=head1 SYNOPSIS
+
+run_canu --tmpdir BugBuilder_working_directory --fastq1 read1.fastq --fastq2 read2.fastq
+--category [assembler_category] [--insert_size insertsize] [--insert-stddev stddev] [--help]
+
+=head1 DESCRIPTION
+
+Wrapper for Canu WGS assembler. Canu requires inputs in it's own FRG format, hence we need to
+initially convert our fastq files, before running the assembler
+
+=head1 REQUIRED ARGUMEMNTS
+
+=over 4
+
+=item B<tmpdir>: BugBuilder working directory, containing unscaffolded contigs.fasta file
+
+=item B<long_fastq>: Fastq file from PacBio or Nanopore run
+
+=item B<category>: Category of assembly i.e. long_illumina, 454_IonTorrent
+
+=item B<platform>: platform of assembly i.e. PacBio or MinION
+
+=item B<genome_size>: Estimated size of genome
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=over 4
+
+=item B<help>: display short help text
+
+=item B<man>: display full documentation
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report any bugs/issues via github:
+https://github.com/jamesabbott/BugBuilder/issues/new
+
+=head1 AUTHOR - James Abbott and Nick Waters
+
+Email j.abbott@imperial.ac.uk and nickp60@gmail.com
+
+=cut
+
+use warnings;
+use strict;
+
+use FindBin;
+use YAML::XS qw(LoadFile);
+use Getopt::Long;
+use Pod::Usage;
+use Carp qw(croak cluck);
+use Bio::SeqIO;
+
+{
+
+    my $config = LoadFile("$FindBin::Bin/../etc/BugBuilder.yaml");
+    my ( $help, $man, $long_fastq, $category, $platform, $tmpdir, $genome_size );
+
+    my $result = GetOptions(
+                             'tmpdir=s'        => \$tmpdir,
+                             'long_fastq:s'    => \$long_fastq,
+                             'category=s'      => \$category,
+                             'platform=s'      => \$platform,
+			     'genome_size:s'   => \$genome_size,
+                             'help'            => \$help,
+                             'man'             => \$man,
+                           );
+
+    # croak "\nUnknown argument: @ARGV" if "@ARGV";
+    my $assembler_args = join(" ", @ARGV);
+    pod2usage( verbose => 2 ) if ($man);
+    pod2usage( verbose => 1 )
+      if ( $help || !$tmpdir || !$long_fastq || !$category || !$genome_size);
+
+    croak "\n$long_fastq does not exist" unless ( -e $long_fastq );
+    croak "Invalid plaftorm: $category"
+      unless ( $category eq 'long');
+
+    # chdir "$tmpdir/canu" or croak "Could not chdir to $tmpdir/canu: $!";
+
+    my $readtype;
+    # temporarily, treat all as raw reads
+    if (lc($platform) eq 'minion') {
+	$readtype = "-nanopore-raw";	
+    } elsif (lc($platform) eq 'pacbio') {
+	$readtype = '-pacbio-raw';
+    } elsif (0) {
+	die ("categpry must be either PacBio or MinION");
+    }
+    my $cmd = $config->{'canu_dir'} . "canu -p BugBuilder -genomeSize=$genome_size -d ./assembly $readtype $long_fastq $assembler_args";
+
+    print "running $cmd...\n";
+    system($cmd) == 0 or croak " Error executing $cmd: $! ";
+
+    exit(0);
+
+}
