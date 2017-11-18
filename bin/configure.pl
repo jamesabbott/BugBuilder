@@ -710,6 +710,13 @@ assemblers:
      contig_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.ctg.fasta
      scaffold_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.scf.fasta
      downsample_reads: 0
+   - name: canu
+     create_dir: 0
+     min_length: 300
+     command_se: __BUGBUILDER_BIN__/run_canu --fastq_long __LONG_FASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --platform __PLATFORM__ --genome_size __GENOME_SIZE__
+     contig_output: __TMPDIR__/assembly/BugBuilder.contigs.fasta
+     downsample_reads: 0
+     default_args: stopOnReadQuality=false
    - name: PBcR
      create_dir: 1
      min_length: 500

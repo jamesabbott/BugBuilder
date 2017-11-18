@@ -68,6 +68,17 @@ packages:
         - '1.0-r31'
         - '1.2-r94'
 
+    - name: 'canu'
+      download_url: 'https://github.com/marbl/canu/archive/v1.6.tar.gz'
+      inst_source: 'v1.6.tar.gz'
+      build_cmd: 'cd __BBDIR__/canu-1.6/src; make -j 8 2>&1; mv -v canu __PACKDIR__/bin/seqtk 2>&1'
+      key: 'canu_dir'
+      bin_dir: '/bin'
+      binary: 'canu'
+      version_test: "__BINARY__ 2>&1|grep Version|awk '{print $2}'"
+      version:
+        - '1.6'
+
     - name: 'samtools'
       binary:  'samtools'
       version_test: "__BINARY__ 2>&1|grep Version|cut -d' ' -f 2"
