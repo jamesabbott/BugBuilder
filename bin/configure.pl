@@ -45,7 +45,7 @@ https://github.com/jamesabbott/BugBuilder/issues/new
 
 =head1 AUTHOR - James Abbott
 
-Email j.abbott@imperial.ac.uk
+Email j.abbott@dundee.ac.uk
 
 =cut
 
