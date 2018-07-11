@@ -104,7 +104,7 @@ assemblers:
    - name: abyss 
      create_dir: 1
      max_length: 200
-     command_pe: __BUGBUILDER_BIN__/run_abyss --tmpdir __TMPDIR__ --fastq1 __FASTQ1__ --fastq2 __FASTQ2__ --read_length __READ_LENGTH__
+     command_pe: __BUGBUILDER_BIN__/bb_run_abyss --tmpdir __TMPDIR__ --fastq1 __FASTQ1__ --fastq2 __FASTQ2__ --read_length __READ_LENGTH__
      contig_output: __TMPDIR__/abyss/abyss-contigs.fa
      scaffold_output: __TMPDIR__/abyss/abyss-scaffolds.fa
      default_args: --assembler_args 'np=__THREADS__ j=__THREADS__'
@@ -122,30 +122,30 @@ assemblers:
    - name: celera
      create_dir: 1
      min_length: 75
-     command_se: __BUGBUILDER_BIN__/run_celera --fastq1 __FASTQ1__ --tmpdir __TMPDIR__ --category __CATEGORY__ --encoding __ENCODING__ --genome_size __GENOME_SIZE__
-     command_pe: __BUGBUILDER_BIN__/run_celera --fastq1 __FASTQ1__ --fastq2 --tmpdir __TMPDIR__ --category __CATEGORY__ --encoding __ENCODING__ --genome_size __GENOME_SIZE__
+     command_se: __BUGBUILDER_BIN__/bb_run_celera --fastq1 __FASTQ1__ --tmpdir __TMPDIR__ --category __CATEGORY__ --encoding __ENCODING__ --genome_size __GENOME_SIZE__
+     command_pe: __BUGBUILDER_BIN__/bb_run_celera --fastq1 __FASTQ1__ --fastq2 --tmpdir __TMPDIR__ --category __CATEGORY__ --encoding __ENCODING__ --genome_size __GENOME_SIZE__
      contig_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.ctg.fasta
      scaffold_output: __TMPDIR__/celera/output/9-terminator/BugBuilder.scf.fasta
      downsample_reads: 0
    - name: canu
      create_dir: 0
      min_length: 300
-     command_se: __BUGBUILDER_BIN__/run_canu --fastq_long __LONG_FASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --platform __PLATFORM__ --genome_size __GENOME_SIZE__
+     command_se: __BUGBUILDER_BIN__/bb_run_canu --fastq_long __LONG_FASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --platform __PLATFORM__ --genome_size __GENOME_SIZE__
      contig_output: __TMPDIR__/assembly/BugBuilder.contigs.fasta
      downsample_reads: 0
      default_args: stopOnReadQuality=false
    - name: PBcR
      create_dir: 1
      min_length: 0
-     command_se: __BUGBUILDER_BIN__/run_PBcR --fastq __LONGFASTQ__ --tmpdir __TMPDIR__ --genome_size __GENOME_SIZE__ --platform __PLATFORM__
+     command_se: __BUGBUILDER_BIN__/bb_run_PBcR --fastq __LONGFASTQ__ --tmpdir __TMPDIR__ --genome_size __GENOME_SIZE__ --platform __PLATFORM__
      contig_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.ctg.fasta
      scaffold_output: __TMPDIR__/PBcR/BugBuilder/9-terminator/asm.scf.fasta
      downsample_reads: 0
      # masurca works best with untrimmed reads, so use __ORIG_FASTQ1__ nad __ORIG_FASTQ2__
    - name: masurca
      create_dir: 1                                                                                                                                                                                             
-     command_pe: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
-     command_hybrid: __BUGBUILDER_BIN__/run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --longfastq __LONGFASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
+     command_pe: __BUGBUILDER_BIN__/bb_run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
+     command_hybrid: __BUGBUILDER_BIN__/bb_run_masurca --fastq1 __ORIG_FASTQ1__ --fastq2 __ORIG_FASTQ2__ --longfastq __LONGFASTQ__ --tmpdir __TMPDIR__ --category __CATEGORY__ --insert_size __INSSIZE__ --insert_stddev __INSSD__
      contig_output: __TMPDIR__/masurca/contigs.fasta
      scaffold_output: __TMPDIR__/masurca/scaffolds.fasta 
      default_args: --threads __THREADS__                                                                                                                                                                                 
@@ -155,33 +155,33 @@ assemblers:
 scaffolders:
    - name: mauve
      linkage_evidence: align_genus
-     command: __BUGBUILDER_BIN__/run_mauve --reference __REFERENCE__ --run __RUN__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
+     command: __BUGBUILDER_BIN__/bb_run_mauve --reference __REFERENCE__ --run __RUN__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
      create_dir: 1
      priority: 1
      scaffold_output: scaffolds.fasta
    - name: SIS
      linkage_evidence: align_genus
-     command: __BUGBUILDER_BIN__/run_sis --reference __REFERENCE__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
+     command: __BUGBUILDER_BIN__/bb_run_sis --reference __REFERENCE__ --contigs __CONTIGS__ --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__
      scaffold_output: scaffolds.fasta
      unscaffolded_output: unplaced_contigs.fasta
      create_dir: 1
      priority: 2
    - name: sspace
      linkage_evidence: paired-ends
-     command: __BUGBUILDER_BIN__/run_sspace --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__ --contigs __CONTIGS__ --insert_size __INSSIZE__ --insert_sd __INSSD__ 
+     command: __BUGBUILDER_BIN__/bb_run_sspace --tmpdir __TMPDIR__ --scaff_dir __SCAFFDIR__ --contigs __CONTIGS__ --insert_size __INSSIZE__ --insert_sd __INSSD__ 
      scaffold_output: BugBuilder.scaffolds.fasta
      create_dir: 1
      priority: 3
 
 merge_tools:
    - name: gfinisher 
-     command: __BUGBUILDER_BIN__/run_gfinisher --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__ --reference __REFERENCE__
+     command: __BUGBUILDER_BIN__/bb_run_gfinisher --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__ --reference __REFERENCE__
      contig_output: renamed.fasta
      create_dir: 1
      priority: 1
      allow_scaffolding: 1
    - name: minimus
-     command: __BUGBUILDER_BIN__/run_minimus --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__
+     command: __BUGBUILDER_BIN__/bb_run_minimus --tmpdir __TMPDIR__  --assembler __ASSEMB1__ --assembler __ASSEMB2__
      contig_output: renumbered.fasta
      create_dir: 1
      priority: 2
@@ -189,19 +189,19 @@ merge_tools:
 
 finishers:
    - name: gapfiller
-     command: __BUGBUILDER_BIN__/run_gapfiller --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__ --threads __THREADS__
+     command: __BUGBUILDER_BIN__/bb_run_gapfiller --tmpdir __TMPDIR__ --insert_size __INSSIZE__ --insert_sd __INSSD__ --threads __THREADS__
      create_dir: 1
      ref_required: 0
      priority: 2
      paired_reads: 1
    - name: abyss-sealer
-     command: __BUGBUILDER_BIN__/run_abyss-sealer --tmpdir __TMPDIR__ --encoding __ENCODING__ --threads __THREADS__
+     command: __BUGBUILDER_BIN__/bb_run_abyss-sealer --tmpdir __TMPDIR__ --encoding __ENCODING__ --threads __THREADS__
      create_dir: 1
      ref_required: 0
      priority: 3
      paired_reads: 1
    - name: pilon
-     command: __BUGBUILDER_BIN__/run_pilon --tmpdir __TMPDIR__ --threads __THREADS__
+     command: __BUGBUILDER_BIN__/bb_run_pilon --tmpdir __TMPDIR__ --threads __THREADS__
      create_dir: 1
      ref_required: 0
      paired_reads: 1
@@ -209,7 +209,7 @@ finishers:
 
 varcallers:
    - name: pilon
-     command: __BUGBUILDER_BIN__/run_pilon_var --tmpdir __TMPDIR__ --threads __THREADS__
+     command: __BUGBUILDER_BIN__/bb_run_pilon_var --tmpdir __TMPDIR__ --threads __THREADS__
      ref_required: 1
      create_dir: 1
      priority: 1
