@@ -2,10 +2,6 @@
 
 ######################################################################
 #
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/run_celera $
-# $Author: nickp60 $
-# $Revision: 179 $
-# $Date: 2017-11-13 10:32:17 +0000 (Mon, 13 Nov 2017) $
 #
 # Wrapper for canu assembler to permit use via BugBuilder assembly stage
 #

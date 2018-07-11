@@ -5,10 +5,6 @@
 # Script to check BugBuilder configuration is valid
 # Based on Test::More since it...tests...more....
 #
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/check_config.pl $
-# $Author: jamesa $
-# $Revision: 179 $
-# $Date: 2016-03-10 10:32:17 +0000 (Thu, 10 Mar 2016) $
 #
 # This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
 # and is distributed under the Artistic License 2.0 - see accompanying LICENSE

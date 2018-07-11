@@ -1,9 +1,5 @@
 ###################################################################### 
 #
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/etc/celera_454_IonTorrent.spec $ 
-# $Author: jamesa $
-# $Date: 2013-09-14 12:53:43 +0100 (Sat, 14 Sep 2013) $
-# $Revision: 75 $
 #
 # Specfile for running 454/ionTorrent based assemblies with the
 # Celera assembler

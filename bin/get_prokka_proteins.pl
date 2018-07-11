@@ -5,10 +5,6 @@
 # Script to extract protein sequences from prokka-annotated embl
 # entry for running interproscan
 #
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/get_prokka_proteins.pl $
-# $Author: jamesa $
-# $Revision: 38 $
-# $Date: 2013-08-28 09:36:57 +0100 (Wed, 28 Aug 2013) $
 #
 ######################################################################
 

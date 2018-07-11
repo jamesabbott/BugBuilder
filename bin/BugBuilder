@@ -2,10 +2,6 @@
 
 ################################################################################
 #
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/BugBuilder $
-# $Author: jamesa $
-# $Revision: 181 $
-# $Date: 2016-03-13 16:00:41 +0000 (Sun, 13 Mar 2016) $
 #
 # This file is part of BugBuilder (https://github.com/jamesabbott/BugBuilder)
 # and is distributed under the Artistic License 2.0 - see accompanying LICENSE

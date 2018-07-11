@@ -4,10 +4,6 @@
 #
 # Script to parse interpro outputs and merge with EMBL record....
 # 
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/bin/add_iprscan_to_prokka.pl $
-# $Author: jamesa $
-# $Revision: 38 $
-# $Date: 2013-08-28 09:36:57 +0100 (Wed, 28 Aug 2013) $
 #
 ######################################################################
 

@@ -1,10 +1,6 @@
 #/bin/bash
 
 
-# $HeadURL: https://bss-srv4.bioinformatics.ic.ac.uk/svn/BugBuilder/trunk/doc/build.sh $
-# $Author: jamesa $
-# $Date: 2013-08-31 23:30:38 +0100 (Sat, 31 Aug 2013) $
-# $Revision: 54 $
 #
 # Script to build the pdf documentation ..
 
